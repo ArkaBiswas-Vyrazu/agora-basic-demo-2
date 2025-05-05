@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model subscriptions {
+  id                                    Int      @id @default(autoincrement())
+  host                                  String   @db.VarChar(255)
+  subscriber                            String   @db.VarChar(255)
+  created_at                            DateTime @default(now())
+  updated_at                            DateTime @updatedAt
+  users_subscriptions_hostTousers       users    @relation("subscriptions_hostTousers", fields: [host], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+  users_subscriptions_subscriberTousers users    @relation("subscriptions_subscriberTousers", fields: [subscriber], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([host, subscriber])
+}
+
+model users {
+  id                                            Int             @id @default(autoincrement())
+  name                                          String          @unique @db.VarChar(255)
+  uuid                                          String          @unique @default(uuid()) @db.VarChar(255)
+  password                                      String          @db.VarChar(255)
+  created_at                                    DateTime        @default(now())
+  updated_at                                    DateTime        @updatedAt
+  subscriptions_subscriptions_hostTousers       subscriptions[] @relation("subscriptions_hostTousers")
+  subscriptions_subscriptions_subscriberTousers subscriptions[] @relation("subscriptions_subscriberTousers")
+}

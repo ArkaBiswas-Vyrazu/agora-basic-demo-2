@@ -1,0 +1,24 @@
+{
+  "name": "agora-test-implementation",
+  "version": "1.0.0",
+  "description": "Testing Basic Live Streaming Implementation using Agora API along with Permission functionality",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js"
+  },
+  "author": "Arka Biswas",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.7.0",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "express-validator": "^7.2.1",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
+    "prisma": "^6.7.0"
+  }
+}
