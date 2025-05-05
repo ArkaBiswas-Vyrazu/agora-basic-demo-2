@@ -5,90 +5,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agora API Test</title>
-    <style>
-        .top {
-            display: flex;
-            justify-content: center;
-        }
-
-        .content {
-            display: block;
-            flex-direction: column;
-            background-color: rgb(10, 89, 153);
-            width: 420px;
-            height: 470px;
-            justify-content: center;
-            align-items: center;
-            border-radius: 10px;
-            box-shadow: 400;
-            top: 30px;
-            margin: 40px;
-            padding: 15px;
-        }
-
-        #username {
-            border-radius: 7px;
-            background-color: whitesmoke;
-            height: 40px;
-            width: 386px;
-            margin-bottom: 10px;
-            margin-top: 20px;
-            padding-left: 20px
-        }
-
-        #password {
-            border-radius: 7px;
-            background-color: whitesmoke;
-            height: 40px;
-            width: 386px;
-            margin-bottom: 10px;
-            padding-left: 20px
-        }
-
-        button {
-            background-color: #00FF00;
-            padding: 15px 85px;
-            border-radius: 7px;
-            margin-left: 100px;
-        }
-
-        #not-registered {
-            color: black;
-            font-size: 16px;
-            margin-left: 25%;
-        }
-
-        h1 {
-            color: black;
-            justify-content: center;
-            padding-left: 170px;
-            padding-top: 20px
-        }
-
-        a {
-            text-decoration: none;
-            color: rgb(40, 25, 107);
-        }
-    </style>
 </head>
 
 <body>
-    <div class="top">
-        <form action="/user/login" method="post">
-            <div class="content">
-                <h1>Login</h1>
-                <input id="username" type="text" placeholder="Enter Username" name="username">
-                <br />
-                <input id="password" type="password" placeholder="Password" name="password">
-                <br />
-                <button type="submit">Login</button>
-                <br />
-                <p id="not-registered">
-                    Not Registered?? <a href="/user/register">Register</a>
-                </p>
-            </div>
-        </form>
-    </div>
+    <% if (locals.user) { %>
+        <h1>Welcome, <%= locals.user.name %> </h1>
+        <a href="/user/logout" style="display: block;">Logout</a>
+
+        Check out these users. You can subscribe to any one if you please. After subscription, you can then view channels that
+        the host is currently live streaming on. Click on a channel name to join the stream.
+
+        <ul id="users"></ul>
+    <% } else { %>
+        <h1>How did you get here?</h1>
+        <a href="/user/login">Go to the login page</a>
+    <% } %>
+
+    <script defer>
+        const usersList = document.querySelector("#users");
+        fetch(`http://${window.location.hostname}:${window.location.port}/user/list`)
+        .then(async (response) => {
+            let users = await response.json();
+            let logged_in_user = await fetch(`http://${window.location.hostname}:${window.location.port}/user/logged_in`).then(async response => {
+                let data = await response.json();
+                return data;
+            });
+
+            console.log(`User ====> `, logged_in_user.toString());
+            for (const user of users) {
+                const listElement = document.createElement("li");
+                listElement.textContent = user.name;
+
+                if (!user.is_subscribed) {
+                    const subscribeForm = document.createElement("form")
+                    subscribeForm.id = `user_subscribe_${user.uuid}`;
+                    subscribeForm.class = "user_subscribe";
+
+                    const hostInputElement = document.createElement("input");
+                    hostInputElement.type = "hidden";
+                    hostInputElement.name = "host";
+                    hostInputElement.value = user.uuid;
+
+                    const subscriberInputElement = document.createElement("input")
+                    subscriberInputElement.type = "hidden";
+                    subscriberInputElement.name = "host";
+                    subscriberInputElement.value = logged_in_user.uuid;
+                    
+                    const submitButton = document.createElement("button")
+                    submitButton.type = "submit";
+                    submitButton.textContent = "Subscribe";
+
+                    subscribeForm.appendChild(hostInputElement);
+                    subscribeForm.appendChild(subscriberInputElement);
+                    subscribeForm.appendChild(submitButton);
+
+                    listElement.appendChild(subscribeForm);
+                }
+
+                usersList.appendChild(listElement);
+            }
+        });
+    </script>
 </body>
 
 </html>

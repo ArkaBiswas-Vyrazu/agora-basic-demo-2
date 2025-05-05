@@ -5,6 +5,8 @@ import { routes } from "./routers/routers.js";
 import path from "path";
 import session from "express-session";
 import passport from "passport";
+import { PrismaClient } from "./generated/prisma/client.js";
+import cors from "cors";
 config();
 
 const app = express();
@@ -12,6 +14,7 @@ const HOSTNAME = process.env.HOSTNAME || "localhost";
 const PORT = process.env.PORT || 5000;
 let start_timestamp = 0;
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded());
 app.use(express.static("public"));
@@ -25,13 +28,28 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use("/user", routes.userRouter);
-app.get("/", (req, res) => res.render("index", { user: req.user }));
+app.get("/", async (req, res) => {
+    try {
+        if (req.user) {
+            res.render("index", { user: req.user});
+        } else {
+            try {
+                res.redirect("/user/login");
+            } catch (err) {
+                console.log(err);
+                res.status(500).send(err);
+            }
+        }
+    } catch(err) {
+        res.status(500).send(err);
+    }
+});
 
 app.use("*splat", async (req, res) => res.status(404).send("This path was not found"));
 app.use(async (err, req, res, next) => {
     if (!err) {
         console.log(await err.toString());
-        res.status(500).json(await err);
+        res.status(500).json(err);
     } else return next();
 })
 

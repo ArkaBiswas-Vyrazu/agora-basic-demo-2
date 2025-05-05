@@ -14,6 +14,49 @@ async function registerUser(req, res) {
     else res.redirect("/");
 }
 
+async function listUsers(req, res) {
+    try {
+        const users = await prisma.users.findMany({
+            select: {
+                id: true,
+                name: true,
+                uuid: true,
+                created_at: true,
+                updated_at: true
+            },
+            where: {
+                NOT: {
+                    uuid: req.user.uuid
+                }
+            }
+        });
+
+        for (const user of users) {
+            user['is_subscribed'] = false;
+            try {
+                const subscription = await prisma.subscriptions.findFirst({
+                    where: {
+                        host: user.uuid,
+                        subscriber: req.user.uuid
+                    }
+                });
+
+                user['is_subscribed'] = (subscription !== null);
+            } catch (err) {
+                console.log(err)
+                continue;
+            }
+        }
+
+        console.log(users);
+        res.status(200).json(users);
+    } catch (err) {
+        console.log(err);
+        res.status(500).send(err);
+    }
+}
+
 export const userControllers = {
-    registerUser
+    registerUser,
+    listUsers
 };

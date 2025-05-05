@@ -50,9 +50,10 @@ passport.deserializeUser(async (uuid, done) => {
     }
 });
 
+userRouter.get("/login", (req, res) => res.render("login"));
 userRouter.post("/login", passport.authenticate("local", {
     successRedirect: "/",
-    failureRedirect: "/"
+    failureRedirect: "/user/login"
 }));
 
 userRouter.get("/logout", async (req, res, next) => {
@@ -69,6 +70,14 @@ userRouter.post("/register", validators.userValidators.registerUserValidator, as
     if (!errors.isEmpty()) res.status(400).json(errors.array());
 
     await controllers.userControllers.registerUser(req, res);
+});
+
+userRouter.get("/list", async (req, res) => {
+    await controllers.userControllers.listUsers(req, res);
+});
+
+userRouter.get("/logged_in", (req, res) => {
+    res.status(200).json(req.user);
 });
 
 export { userRouter };
