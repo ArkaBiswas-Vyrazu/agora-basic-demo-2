@@ -17,7 +17,26 @@ const registerUserValidator = [
     .isLength({min: 8}).withMessage("Password length should be atleast 8 characters")
 ];
 
+const subscribeUserValidator = [
+    body("host")
+    .notEmpty().withMessage("Please provide a valid host uuid")
+    .trim()
+    .custom(async value => {
+        const user = await prisma.users.findFirst({where: {uuid: value}});
+        if (!user) throw new Error("Provided Host uuid does not exist");
+    }),
+
+    body("subscriber")
+    .notEmpty().withMessage("Please provide a valid subscriber uuid")
+    .trim()
+    .custom(async value => {
+        const user = await prisma.users.findFirst({where: {uuid: value}});
+        if (!user) throw new Error("Provided Subscriber uuid does not exist");
+    })
+]
+
 
 export const userValidators = {
-    registerUserValidator
+    registerUserValidator,
+    subscribeUserValidator
 };

@@ -80,4 +80,16 @@ userRouter.get("/logged_in", (req, res) => {
     res.status(200).json(req.user);
 });
 
+userRouter.post("/subscribe", validators.userValidators.subscribeUserValidator, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) res.status(400).json(errors.array());
+
+    await controllers.userControllers.subscribeUser(req, res);
+});
+
+userRouter.use((err, req, res, next) => {
+    console.log(err);
+    res.status(500).send(err);
+});
+
 export { userRouter };

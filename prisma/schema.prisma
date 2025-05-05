@@ -27,6 +27,18 @@ model users {
   password                                      String          @db.VarChar(255)
   created_at                                    DateTime        @default(now())
   updated_at                                    DateTime        @updatedAt
+  channels                                      channels[]
   subscriptions_subscriptions_hostTousers       subscriptions[] @relation("subscriptions_hostTousers")
   subscriptions_subscriptions_subscriberTousers subscriptions[] @relation("subscriptions_subscriberTousers")
+}
+
+model channels {
+  id          BigInt    @id @default(autoincrement())
+  name        String    @db.VarChar(255)
+  host        String    @db.VarChar(255)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  users       users     @relation(fields: [host], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([name, host])
 }
