@@ -5,7 +5,6 @@ import { routes } from "./routers/routers.js";
 import path from "path";
 import session from "express-session";
 import passport from "passport";
-import { PrismaClient } from "./generated/prisma/client.js";
 import cors from "cors";
 config();
 
@@ -28,6 +27,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use("/user", routes.userRouter);
+app.use("/channel", routes.channelRouter);
+app.use("/agora", routes.agoraRouter);
 app.get("/", async (req, res) => {
     try {
         if (req.user) {
@@ -59,6 +60,6 @@ app.listen(PORT, HOSTNAME, () => {
 });
 
 process.on("SIGINT", () => {
-    console.log(`\nServer Runtime Duration: ${Date.now() - start_timestamp}s`);
+    console.log(`\nServer Runtime Duration: ${Date.now() - start_timestamp}ms`);
     process.exit();
 });

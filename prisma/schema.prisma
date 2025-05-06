@@ -33,12 +33,12 @@ model users {
 }
 
 model channels {
-  id          BigInt    @id @default(autoincrement())
-  name        String    @db.VarChar(255)
-  host        String    @db.VarChar(255)
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-  users       users     @relation(fields: [host], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  host       String   @db.VarChar(255)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  users      users    @relation(fields: [host], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([name, host])
 }

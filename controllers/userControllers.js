@@ -67,10 +67,10 @@ async function subscribeUser(req, res) {
             }
         });
 
-        res.status(200).json(row);
+        res.redirect("/");
     } catch(err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError) {
-            if (err.code === "P2002") res.status(400).send("This subscription already exists");
+            if (err.code === "P2002") res.status(400).json("This subscription already exists");
             else throw err; 
         }
     }
