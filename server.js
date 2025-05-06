@@ -15,7 +15,7 @@ let start_timestamp = 0;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended: true}));
 app.use(express.static("public"));
 for (const middleware of Object.keys(middlewares)) app.use(middlewares[middleware]);
 

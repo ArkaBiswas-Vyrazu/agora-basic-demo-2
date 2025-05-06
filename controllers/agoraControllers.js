@@ -36,6 +36,21 @@ async function createHostToken(req, res) {
     res.status(200).json({host: req.body.host, channel: channelName, token});
 }
 
+async function createAudienceToken(req, res) {
+    const token = RtcTokenBuilder.buildTokenWithUid(
+        process.env.AGORA_APP_ID,
+        process.env.AGORA_APP_CERTIFICATE,
+        req.body.channel,
+        req.body.user,
+        RtcRole.SUBSCRIBER,
+        600,
+        600
+    );
+
+    res.status(200).json({user: req.body.user, channel: req.body.channel, token});
+}
+
 export const agoraControllers = {
-    createHostToken
+    createHostToken,
+    createAudienceToken
 }

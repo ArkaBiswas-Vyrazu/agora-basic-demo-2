@@ -16,4 +16,15 @@ agoraRouter.post('/token/host/create', validators.agoraValidators.createHostToke
     }
 });
 
+agoraRouter.post('/token/audience/create', validators.agoraValidators.createAudienceTokenValidator, async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) res.status(400).json(errors.array());
+        else await controllers.agoraControllers.createAudienceToken(req, res);
+    } catch (err) {
+        console.log(err);
+        res.status(500).json(err);
+    }
+});
+
 export { agoraRouter };

@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agora API Test</title>
+    <link rel="stylesheet" href="/css/index.css">
 </head>
 
 <body>
     <% if (locals.user) { %>
         <h1>Welcome, <%= locals.user.name %> </h1>
-        <a href="/user/logout" style="display: inline-block;">Logout</a>
+        <h6><a href="/user/logout">Logout</a></h6>
 
         Check out these users. You can subscribe to any one if you please. After subscription, you can then view channels that
         the host is currently live streaming on. Click on a channel name to join the stream.
@@ -27,12 +28,16 @@
         <h2>Your channels</h2>
         <ul id="channels"></ul>
 
+        <div id="stream-wrapper">
+            <div id="streams"></div>
+        </div>
+
+        <script src="scripts/index.js" defer></script>
+        <script src="scripts/agora.js" defer></script>
     <% } else { %>
         <h1>How did you get here?</h1>
         <a href="/user/login">Go to the login page</a>
     <% } %>
-
-    <script src="scripts/index.js" defer></script>
 </body>
 
 </html>
