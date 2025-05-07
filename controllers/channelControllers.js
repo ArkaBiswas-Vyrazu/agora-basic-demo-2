@@ -1,11 +1,14 @@
+import { generate } from "random-words";
 import { PrismaClient, Prisma } from "../generated/prisma/client.js";
 const prisma = new PrismaClient();
 
 async function registerChannel(req, res) {
     try {
+        const channelName = req.body.channel || generate({ exactly: 3, formatter: (word) => word.toUpperCase() }).join("-");
+
         const channel = await prisma.channels.create({
             data: {
-                name: req.body.channel,
+                name: channelName,
                 host: req.body.host
             }
         });

@@ -239,16 +239,15 @@ window.addEventListener("DOMContentLoaded", async () => {
         .then(async (response) => {
             let channels = await response.json();
             if (channels.length === 0) {
-                const channelElement = document.createElement("li");
-                channelElement.textContent = "You didn't make any channels yet";
+                const channelElement = document.createTextNode("You didn't make any channels yet");
                 channelList.appendChild(channelElement);
             } else {
                 for (const channel of channels) {
                     const channelElemet = document.createElement("li");
                     channelElemet.textContent = channel.name;
-                    
+
                     const startStreamForm = document.createElement("form");
-                    
+
                     const startStreamHostInput = document.createElement("input");
                     startStreamHostInput.type = "hidden";
                     startStreamHostInput.name = "host";

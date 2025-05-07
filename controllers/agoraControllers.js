@@ -60,6 +60,8 @@ async function notifyAudienceStatus(req, res) {
     if (req.body.eventType !== status) {
         console.log("Status Right Now ===> ", status);
         status = await req.body.eventType;
+
+        // WARNING: This can lead to an event leak.... should find alternate ways of doing this
         events.agoraAudienceJoinLeaveEvent.emit("agora-audience-joined-or-left", req.body);
     }
 
@@ -67,8 +69,40 @@ async function notifyAudienceStatus(req, res) {
     res.status(200).json({ status: true, msg: "Notification Received" });
 }
 
+async function handleAgoraAudienceEventStream(req, res) {
+    console.log("Event was started");
+
+    const headers = new Headers({
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    });
+
+    res.setHeaders(headers);
+
+    // WARNING: This can lead to an event leak.... should find alternate ways of doing this
+    events.agoraAudienceJoinLeaveEvent.on("agora-audience-joined-or-left", async (body) => {
+        const user = await prisma.users.findFirst({
+            where: {
+                uuid: body.payload.account
+            },
+            select: {
+                name: true
+            }
+        });
+
+        res.write(`data: Audience Member ${user.name} ${(body.eventType == 105) ? "joined": "left"}\n\n`);
+    });
+
+    req.on("close", () => {
+        console.log("Event was ended");
+        res.end();
+    });
+}
+
 export const agoraControllers = {
     createHostToken,
     createAudienceToken,
-    notifyAudienceStatus
+    notifyAudienceStatus,
+    handleAgoraAudienceEventStream
 }

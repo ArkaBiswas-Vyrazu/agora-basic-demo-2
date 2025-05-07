@@ -17,7 +17,6 @@ const registerChannelValidator = [
 
     body("channel")
     .trim()
-    .notEmpty().withMessage("Please provide a valid channel name")
     .custom(async (value, { req }) => {
         const channel = await prisma.channels.findFirst({
             where: {

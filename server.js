@@ -6,8 +6,6 @@ import path from "path";
 import session from "express-session";
 import passport from "passport";
 import cors from "cors";
-import { events } from "./events.js";
-import { PrismaClient } from "./generated/prisma/client.js";
 config();
 
 const app = express();
@@ -27,37 +25,6 @@ app.set("view engine", "ejs");
 app.use(session({ secret: process.env.SESSION_SECRET_KEY || "cats", saveUninitialized: false, resave: false }));
 app.use(passport.initialize());
 app.use(passport.session());
-
-app.get("/events", (req, res) => {
-    console.log("Event was started");
-
-    const headers = new Headers({
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
-    });
-
-    res.setHeaders(headers);
-
-    events.agoraAudienceJoinLeaveEvent.on("agora-audience-joined-or-left", async (body) => {
-        const user = await new PrismaClient().users.findFirst({
-            where: {
-                uuid: body.payload.account
-            },
-            select: {
-                name: true
-            }
-        })
-
-        res.write(`data: Audience Member ${user.name} ${(body.eventType == 105) ? "joined": "left"}\n\n`);
-    });
-
-    req.on("close", () => {
-        console.log("Event was ended");
-        res.end();
-    });
-});
-
 
 app.use("/user", routes.userRouter);
 app.use("/channel", routes.channelRouter);

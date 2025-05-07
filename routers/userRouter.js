@@ -68,8 +68,7 @@ userRouter.get("/register", (req, res) => res.render("sign-up-form"));
 userRouter.post("/register", validators.userValidators.registerUserValidator, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) res.status(400).json(errors.array());
-
-    await controllers.userControllers.registerUser(req, res);
+    else await controllers.userControllers.registerUser(req, res);
 });
 
 userRouter.get("/list", async (req, res) => {
@@ -83,8 +82,7 @@ userRouter.get("/logged_in", (req, res) => {
 userRouter.post("/subscribe", validators.userValidators.subscribeUserValidator, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) res.status(400).json(errors.array());
-
-    await controllers.userControllers.subscribeUser(req, res);
+    else await controllers.userControllers.subscribeUser(req, res);
 });
 
 userRouter.use((err, req, res, next) => {
