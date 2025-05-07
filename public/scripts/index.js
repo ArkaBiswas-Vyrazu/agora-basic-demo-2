@@ -4,7 +4,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     let remoteUsers = {};
 
     const usersList = document.querySelector("#users");
-    let logged_in_user = await fetch(`http://${window.location.hostname}:${window.location.port}/user/logged_in`).then(async response => {
+    let logged_in_user = await fetch(`/user/logged_in`).then(async response => {
         let data = await response.json();
         return data;
     });
@@ -21,7 +21,7 @@ window.addEventListener("DOMContentLoaded", async () => {
                 subscribeForm.id = `user_subscribe_${user.uuid}`;
                 subscribeForm.class = "user_subscribe";
                 subscribeForm.method = "post";
-                subscribeForm.action = `http://${window.location.hostname}:${window.location.port}/user/subscribe`
+                subscribeForm.action = `/user/subscribe`
 
                 const hostInputElement = document.createElement("input");
                 hostInputElement.type = "hidden";
@@ -43,7 +43,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
                 listElement.appendChild(subscribeForm);
             } else {
-                let response = await fetch(`http://${window.location.hostname}:${window.location.port}/channel/list?host=${user.uuid}`);
+                let response = await fetch(`/channel/list?host=${user.uuid}`);
                 let channels = await response.json();
 
                 const channelList = document.createElement("ul");
@@ -229,13 +229,13 @@ window.addEventListener("DOMContentLoaded", async () => {
         document.querySelector(`#user_container_${user.uid}`).remove();
     }
 
-    fetch(`http://${window.location.hostname}:${window.location.port}/user/list`)
+    fetch(`/user/list`)
     .then(async (response) => {
             await listUsers(response);
     });
 
     const channelList = document.querySelector("#channels");
-    fetch(`http://${window.location.hostname}:${window.location.port}/channel/list?host=${logged_in_user.uuid}`)
+    fetch(`/channel/list?host=${logged_in_user.uuid}`)
         .then(async (response) => {
             let channels = await response.json();
             if (channels.length === 0) {

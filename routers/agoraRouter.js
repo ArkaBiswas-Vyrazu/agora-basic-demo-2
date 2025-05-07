@@ -27,4 +27,8 @@ agoraRouter.post('/token/audience/create', validators.agoraValidators.createAudi
     }
 });
 
+agoraRouter.post('/ncsNotify', async (req, res) => {
+    await controllers.agoraControllers.notifyAudienceStatus(req, res);
+})
+
 export { agoraRouter };
