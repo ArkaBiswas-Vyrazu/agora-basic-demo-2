@@ -76,13 +76,13 @@ window.addEventListener("DOMContentLoaded", async () => {
                     channelForm.append(channelHiddenHostInput, channelHiddenChannelInput, channelHiddenUserInput, channelButton);
                     channelForm.addEventListener("submit", async (event) => {
                         event.preventDefault();
+
+                        // To test if this is working, swap the host and user values, and set role to "host"
                         await joinAndDisplayStream(
                             event.target.elements.host.value,
                             event.target.elements.user.value,
                             event.target.elements.channel.value,
-                            "audience"
-                            // "host",
-                            // true
+                            "audience",
                         );
                     })
 
@@ -183,7 +183,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         streamWrapper.appendChild(controls);
 
         localTracks[1].play(`user_${(role === "host") ? host : user}`);
-        await client.publish(localTracks);
+        if (role === "host") await client.publish(localTracks);
     }
 
     async function leaveAndRemoveLocalStream(event) {
@@ -205,7 +205,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         if (mediaType === "video") {
             let player = document.querySelector(`#user_container_${user.uid}`);
-            if (!player) player.remove();
+            if (player) player.remove();
 
             player = document.createElement("div");
             player.className = "video_container";
