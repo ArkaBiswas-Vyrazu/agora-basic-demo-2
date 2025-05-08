@@ -13,21 +13,15 @@
 .video_player{
     height: 100%;
     width: 100%;
+    background-color: rgb(46, 42, 42);
 }
 
 #controls{
-    display: none;
+    margin-left: 38rem;
+    margin-top: 10px;
 }
 
 #mic span{
     height: 5%;
     max-width: auto;
-}
-
-#camera {
-    background-color: cadetblue;
-}
-
-#mic {
-    background-color: cadetblue;
 }

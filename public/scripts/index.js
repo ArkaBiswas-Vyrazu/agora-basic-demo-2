@@ -1,6 +1,6 @@
 window.addEventListener("DOMContentLoaded", async () => {
     const APP_ID = "839346d06e0b46298c3468d4bf7c3505";
-    const client = AgoraRTC.createClient({mode: "live", codec: "vp8"});
+    const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
     let remoteUsers = {};
 
     const usersList = document.querySelector("#users");
@@ -107,35 +107,35 @@ window.addEventListener("DOMContentLoaded", async () => {
                 document.querySelector("#mic")?.remove();
 
                 // This part never works..... beacuse Agora does not allow device changed in an active stream
-                client.onMicrophoneChanged = async (info) => {
-                    console.log("Microphone was either removed or changed");
-                    if (info.status === "ACTIVE") {
-                        await micTrack.setDevice(info.device.deviceId);
+                // client.onMicrophoneChanged = async (info) => {
+                //     console.log("Microphone was either removed or changed");
+                //     if (info.status === "ACTIVE") {
+                //         await micTrack.setDevice(info.device.deviceId);
 
-                        document.querySelector("#mic")?.remove();
-                        const micButton = document.createElement("button");
-                        micButton.id = "mic";
-                        micButton.textContent = "Mic On";
-                        micButton.addEventListener("click", async (event) => {
-                            if (localTracks[0].muted) {
-                                await localTracks[0].setMuted(false);
-                                event.target.textContent = "Mic On";
-                                event.target.style.backgroundColor = "cadetblue"
-                            } else {
-                                await localTracks[0].setMuted(true);
-                                event.target.textContent = "Mic Off";
-                                event.target.style.backgroundColor = "#e9e9ed";
-                            }
-                        });
+                //         document.querySelector("#mic")?.remove();
+                //         const micButton = document.createElement("button");
+                //         micButton.id = "mic";
+                //         micButton.textContent = "Mic On";
+                //         micButton.addEventListener("click", async (event) => {
+                //             if (localTracks[0].muted) {
+                //                 await localTracks[0].setMuted(false);
+                //                 event.target.textContent = "Mic On";
+                //                 event.target.style.backgroundColor = "cadetblue"
+                //             } else {
+                //                 await localTracks[0].setMuted(true);
+                //                 event.target.textContent = "Mic Off";
+                //                 event.target.style.backgroundColor = "#e9e9ed";
+                //             }
+                //         });
 
-                        document.querySelector("#controls")?.append(micButton);
+                //         document.querySelector("#controls")?.append(micButton);
 
-                        alert(`Microphone ${info.device.label} has been connected successfully`);
-                    }
-                }
+                //         alert(`Microphone ${info.device.label} has been connected successfully`);
+                //     }
+                // }
 
             });
-        } catch(err) {
+        } catch (err) {
             micTrack = null;
         }
 
@@ -145,14 +145,14 @@ window.addEventListener("DOMContentLoaded", async () => {
                 alert("Camera was diconnected");
                 document.querySelector("#camera")?.remove();
             });
-        } catch(err) {
+        } catch (err) {
             cameraTrack = null;
         }
 
         return [micTrack, cameraTrack];
     }
 
-    async function joinAndDisplayStream(host, user, channel, role, force=false) {
+    async function joinAndDisplayStream(host, user, channel, role, force = false) {
         let streams = document.querySelector("#streams");
         if (streams.innerHTML !== "") {
             alert("A stream is currently running");
@@ -166,15 +166,16 @@ window.addEventListener("DOMContentLoaded", async () => {
         // Reference: https://stackoverflow.com/questions/35325370/how-do-i-post-a-x-www-form-urlencoded-request-using-fetch
         let token = await fetch(`/agora/token/${role}/create`, {
             method: "POST",
-            options: {"Content-Type": "application/x-www-form-urlencoded"},
-            body: new URLSearchParams({host, user, channel})}
+            options: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ host, user, channel })
+        }
         ).then(async response => {
             let data = await response.json()
             return data.token;
         });
 
         if (role === "host") await client.setClientRole("host");
-        else await client.setClientRole("audience", {level: 1});
+        else await client.setClientRole("audience", { level: 1 });
 
         await client.join(APP_ID, channel, token, (role === "host" && !force) ? host : user);
         localTracks = await createLocalTracks();
@@ -193,7 +194,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         const controls = document.createElement("div");
         controls.id = "controls";
         controls.style.display = "flex";
-        
+
         const leaveButton = document.createElement("button");
         leaveButton.id = "leave";
         leaveButton.textContent = "Leave Stream";
@@ -203,16 +204,25 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (localTracks[0]) {
             const micButton = document.createElement("button")
             micButton.id = "mic";
-            micButton.textContent = "Mic On";
+
+            // micButton.textContent = "Mic On";
+            const micButtonImg = document.createElement("img");
+            micButtonImg.src = "/assets/microphone-solid.svg";
+            micButtonImg.style.height = "15px";
+            micButtonImg.style.maxWidth = "auto";
+            micButton.appendChild(micButtonImg);
+
             micButton.addEventListener("click", async (event) => {
+                console.log(event);
+
                 if (localTracks[0].muted) {
                     await localTracks[0].setMuted(false);
-                    event.target.textContent = "Mic On";
-                    event.target.style.backgroundColor = "cadetblue"
+                    if (event.target.src) event.target.src = "/assets/microphone-solid.svg";
+                    if (event.target.firstChild) event.target.firstChild.src = "/assets/microphone-solid.svg";
                 } else {
                     await localTracks[0].setMuted(true);
-                    event.target.textContent = "Mic Off";
-                    event.target.style.backgroundColor = "#e9e9ed";
+                    if (event.target.src) event.target.src = "/assets/microphone-slash-solid.svg";
+                    if (event.target.firstChild) event.target.firstChild.src = "/assets/microphone-slash-solid.svg";
                 }
             });
             controls.appendChild(micButton);
@@ -221,16 +231,28 @@ window.addEventListener("DOMContentLoaded", async () => {
         if (localTracks[1]) {
             const cameraButton = document.createElement("button");
             cameraButton.id = "camera";
-            cameraButton.textContent = "Camera On";
+            // cameraButton.textContent = "Camera On";
+
+            const cameraButtonImg = document.createElement("img");
+            cameraButtonImg.src = "/assets/cam.png";
+            cameraButtonImg.style.height = "15px";
+            cameraButtonImg.style.maxWidth = "auto";
+            cameraButtonImg.style.marginTop = "2%";
+            cameraButton.appendChild(cameraButtonImg);
+
             cameraButton.addEventListener("click", async (event) => {
                 if (localTracks[1].muted) {
                     await localTracks[1].setMuted(false);
-                    event.target.textContent = "Camera On";
-                    event.target.style.backgroundColor = "cadetblue";
+                    // event.target.textContent = "Camera On";
+                    // event.target.style.backgroundColor = "cadetblue";
+                    if (event.target.src) event.target.src = "/assets/cam.png";
+                    if (event.target.firstChild) event.target.firstChild.src = "/assets/cam.png";
                 } else {
                     await localTracks[1].setMuted(true);
-                    event.target.textContent = "Camera Off";
-                    event.target.style.backgroundColor = "#e9e9ed";
+                    // event.target.textContent = "Camera Off";
+                    // event.target.style.backgroundColor = "#e9e9ed";
+                    if (event.target.src) event.target.src = "/assets/cam-off.png";
+                    if (event.target.firstChild) event.target.firstChild.src = "/assets/cam-off.png";
                 }
             })
             controls.appendChild(cameraButton);
@@ -263,6 +285,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             image.src = "/assets/anon.webp";
             image.style.display = "flex";
             image.style.margin = "auto";
+            image.style.borderRadius = "50%";
             playerContainerPlayer.style.display = "flex";
             playerContainerPlayer.appendChild(image);
         }
@@ -316,9 +339,9 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     fetch(`/user/list`)
-    .then(async (response) => {
+        .then(async (response) => {
             await listUsers(response);
-    });
+        });
 
     const channelList = document.querySelector("#channels");
     fetch(`/channel/list?host=${logged_in_user.uuid}`)
