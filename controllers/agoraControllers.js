@@ -15,7 +15,7 @@ async function createHostToken(req, res) {
         }
     });
 
-    if (!channel) {
+    if (!channel && req.body.no_create !== true) {
         await prisma.channels.create({
             data: {
                 name: channelName,
@@ -24,17 +24,19 @@ async function createHostToken(req, res) {
         });
     }
 
+    let pseudoUuid = ("screen_token" in req.body && req.body.screen_token) ? Math.floor(Math.random() * 10000) : null
+
     const token = RtcTokenBuilder.buildTokenWithUid(
         process.env.AGORA_APP_ID,
         process.env.AGORA_APP_CERTIFICATE,
         channelName,
-        req.body.host,
+        (pseudoUuid) ? pseudoUuid : req.body.host,
         RtcRole.PUBLISHER,
         600,
         600
     );
 
-    res.status(200).json({host: req.body.host, channel: channelName, token});
+    res.status(200).json({host: req.body.host, channel: channelName, token, ...(pseudoUuid && {generated: pseudoUuid})});
 }
 
 async function createAudienceToken(req, res) {
