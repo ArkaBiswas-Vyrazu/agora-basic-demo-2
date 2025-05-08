@@ -97,14 +97,35 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function createLocalTracks() {
-        const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        const cameraTrack = await AgoraRTC.createCameraVideoTrack();
+        let micTrack = null;
+        let cameraTrack = null;
+
+        try {
+            micTrack = await AgoraRTC.createMicrophoneAudioTrack() || null;
+            if (micTrack) micTrack.on("track-ended", () => {
+                alert("Microphone was disconnected");
+                document.querySelector("#mic")?.remove();
+            });
+        } catch(err) {
+            micTrack = null;
+        }
+
+        try {
+            cameraTrack = await AgoraRTC.createCameraVideoTrack() || null;
+            if (cameraTrack) cameraTrack.on("track-ended", () => {
+                alert("Camera was diconnected");
+                document.querySelector("#camera")?.remove();
+            });
+        } catch(err) {
+            cameraTrack = null;
+        }
+
         return [micTrack, cameraTrack];
     }
 
     async function joinAndDisplayStream(host, user, channel, role, force=false) {
         let streams = document.querySelector("#streams");
-        if (!streams) {
+        if (streams.innerHTML !== "") {
             alert("A stream is currently running");
             throw new Error("A stream is currently running");
         }
@@ -148,50 +169,68 @@ window.addEventListener("DOMContentLoaded", async () => {
         leaveButton.id = "leave";
         leaveButton.textContent = "Leave Stream";
         leaveButton.addEventListener("click", leaveAndRemoveLocalStream);
+        controls.appendChild(leaveButton);
 
-        const micButton = document.createElement("button")
-        micButton.id = "mic";
-        micButton.textContent = "Mic On";
-        micButton.addEventListener("click", async (event) => {
-            if (localTracks[0].muted) {
-                await localTracks[0].setMuted(false);
-                event.target.textContent = "Mic On";
-                event.target.style.backgroundColor = "cadetblue"
-            } else {
-                await localTracks[0].setMuted(true);
-                event.target.textContent = "Mic Off";
-                event.target.style.backgroundColor = "#e9e9ed";
-            }
-        });
+        if (localTracks[0]) {
+            const micButton = document.createElement("button")
+            micButton.id = "mic";
+            micButton.textContent = "Mic On";
+            micButton.addEventListener("click", async (event) => {
+                if (localTracks[0].muted) {
+                    await localTracks[0].setMuted(false);
+                    event.target.textContent = "Mic On";
+                    event.target.style.backgroundColor = "cadetblue"
+                } else {
+                    await localTracks[0].setMuted(true);
+                    event.target.textContent = "Mic Off";
+                    event.target.style.backgroundColor = "#e9e9ed";
+                }
+            });
+            controls.appendChild(micButton);
+        }
 
-        const cameraButton = document.createElement("button");
-        cameraButton.id = "camera";
-        cameraButton.textContent = "Camera On";
-        cameraButton.addEventListener("click", async (event) => {
-            if (localTracks[1].muted) {
-                await localTracks[1].setMuted(false);
-                event.target.textContent = "Camera On";
-                event.target.style.backgroundColor = "cadetblue";
-            } else {
-                await localTracks[1].setMuted(true);
-                event.target.textContent = "Camera Off";
-                event.target.style.backgroundColor = "#e9e9ed";
-            }
-        })
+        if (localTracks[1]) {
+            const cameraButton = document.createElement("button");
+            cameraButton.id = "camera";
+            cameraButton.textContent = "Camera On";
+            cameraButton.addEventListener("click", async (event) => {
+                if (localTracks[1].muted) {
+                    await localTracks[1].setMuted(false);
+                    event.target.textContent = "Camera On";
+                    event.target.style.backgroundColor = "cadetblue";
+                } else {
+                    await localTracks[1].setMuted(true);
+                    event.target.textContent = "Camera Off";
+                    event.target.style.backgroundColor = "#e9e9ed";
+                }
+            })
+            controls.appendChild(cameraButton);
+        }
 
-        controls.append(leaveButton, micButton, cameraButton);
+        // controls.append(leaveButton, micButton, cameraButton);
         streamWrapper.appendChild(controls);
 
-        localTracks[1].play(`user_${(role === "host") ? host : user}`);
-        if (role === "host") await client.publish(localTracks);
+        if (localTracks[1] !== null) {
+            localTracks[1].play(`user_${(role === "host") ? host : user}`);
+        } else {
+            let image = document.createElement("img");
+            image.src = "/assets/anon.webp";
+            image.style.display = "flex";
+            image.style.margin = "auto";
+            playerContainerPlayer.appendChild(image);
+        }
+        if (role === "host") await client.publish(localTracks.filter(n => n));
     }
 
     async function leaveAndRemoveLocalStream(event) {
         for (let i = 0; i < localTracks.length; i++) {
-            localTracks[i].stop();
-            localTracks[i].close();
+            if (localTracks[i] !== null) {
+                localTracks[i].stop();
+                localTracks[i].close();
+            } else localTracks.splice(i, 1);
         }
 
+        if (localTracks) await client.unpublish(localTracks);
         await client.leave();
         document.querySelector("#streams").innerHTML = "";
         document.querySelector("#controls").remove();

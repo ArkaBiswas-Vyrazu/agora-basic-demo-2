@@ -23,3 +23,11 @@
     height: 5%;
     max-width: auto;
 }
+
+#camera {
+    background-color: cadetblue;
+}
+
+#mic {
+    background-color: cadetblue;
+}
