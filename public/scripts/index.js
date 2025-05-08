@@ -105,6 +105,35 @@ window.addEventListener("DOMContentLoaded", async () => {
             if (micTrack) micTrack.on("track-ended", () => {
                 alert("Microphone was disconnected");
                 document.querySelector("#mic")?.remove();
+
+                // This part never works..... beacuse Agora does not allow device changed in an active stream
+                client.onMicrophoneChanged = async (info) => {
+                    console.log("Microphone was either removed or changed");
+                    if (info.status === "ACTIVE") {
+                        await micTrack.setDevice(info.device.deviceId);
+
+                        document.querySelector("#mic")?.remove();
+                        const micButton = document.createElement("button");
+                        micButton.id = "mic";
+                        micButton.textContent = "Mic On";
+                        micButton.addEventListener("click", async (event) => {
+                            if (localTracks[0].muted) {
+                                await localTracks[0].setMuted(false);
+                                event.target.textContent = "Mic On";
+                                event.target.style.backgroundColor = "cadetblue"
+                            } else {
+                                await localTracks[0].setMuted(true);
+                                event.target.textContent = "Mic Off";
+                                event.target.style.backgroundColor = "#e9e9ed";
+                            }
+                        });
+
+                        document.querySelector("#controls")?.append(micButton);
+
+                        alert(`Microphone ${info.device.label} has been connected successfully`);
+                    }
+                }
+
             });
         } catch(err) {
             micTrack = null;
@@ -210,6 +239,23 @@ window.addEventListener("DOMContentLoaded", async () => {
         // controls.append(leaveButton, micButton, cameraButton);
         streamWrapper.appendChild(controls);
 
+        client.enableAudioVolumeIndicator();
+        client.on("volume-indicator", volumes => {
+            volumes.forEach((volume, index) => {
+                console.log(`${index} UID ${volume.uid} ${volume.level}`)
+                try {
+                    const container = document.querySelector(`#user_container_${volume.uid}`);
+                    if (container) {
+                        if (volume.level >= 50) container.style.borderColor = "purple";
+                        else container.style.borderColor = "black";
+                    }
+                } catch (err) {
+                    console.log(err);
+                }
+            });
+
+        })
+
         if (localTracks[1] !== null) {
             localTracks[1].play(`user_${(role === "host") ? host : user}`);
         } else {
@@ -217,6 +263,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             image.src = "/assets/anon.webp";
             image.style.display = "flex";
             image.style.margin = "auto";
+            playerContainerPlayer.style.display = "flex";
             playerContainerPlayer.appendChild(image);
         }
         if (role === "host") await client.publish(localTracks.filter(n => n));
