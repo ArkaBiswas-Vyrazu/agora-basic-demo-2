@@ -1,7 +1,7 @@
 window.addEventListener("DOMContentLoaded", async () => {
     const APP_ID = "839346d06e0b46298c3468d4bf7c3505";
     const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
-    const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host"}) // For screen recording
+    const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" }) // For screen recording
 
     let screenUID = null;
     let screenTrack = null;
@@ -195,11 +195,11 @@ window.addEventListener("DOMContentLoaded", async () => {
                 if (screenTrack === null) {
                     try {
                         screenTokenAndUID = (
-                            screenToken || 
+                            screenToken ||
                             await fetch(`/agora/token/host/create`, {
                                 method: "POST",
                                 options: { "Content-Type": "application/x-www-form-urlencoded" },
-                                body: new URLSearchParams({ host, channel, screen_token: true})
+                                body: new URLSearchParams({ host, channel, screen_token: true })
                             }).then(async response => {
                                 let data = await response.json()
                                 return data;
@@ -366,51 +366,74 @@ window.addEventListener("DOMContentLoaded", async () => {
         document.querySelector("#controls").remove();
     }
 
+    async function handleUserJoined(user, mediaType = null, screen = false) {
+        console.log("Remote Users right now ===> ", remoteUsers);
+        console.log("Debug Info ====> ");
+        console.log("Remote user received ===> ", user, " - matches logged in user: ", user.uid === logged_in_user.uuid);
+        console.log("MediaType ===> ", mediaType);
+        console.log("User audio track ===> ", user.audioTrack, user.hasAudio);
+        console.log("User video track ===> ", user.videoTrack, user.hasVideo);
 
-    async function handleUserJoined(user, mediaType, screen=false) {
-        // if (!(user.uid in remoteUsers) && user.uid !== logged_in_user.uuid && (screenUID === null || user.uid !== screenUID)) { // Wrong
-        if (screen === true) console.log('This was triggered by screenClient user-published');
+        if (!([user, mediaType] in remoteUsers) &&
+            user.uid !== logged_in_user.uuid &&
+            user.uid !== client.uid &&
+            (screenUID === null || user.uid !== screenUID)) {
 
-        remoteUsers[user.uid] = user;
-        console.log("A new user joined ===> ", user.uid);
-        (screen === false) ? await client.subscribe(user, mediaType) : await screenClient.subscribe(user, mediaType);
-        console.log(`User ${user.uid} was subscribed successfully`);
+            if (screen === true) console.log('This was triggered by screenClient user-published');
 
-        if (mediaType === "video") {
-            if (screen !== true) {
-                let player = document.querySelector(`#user_container_${user.uid}`);
-                if (player) player.remove();
+            remoteUsers[user.uid] = [user, mediaType];
+            console.log("A new user joined ===> ", user.uid, mediaType);
 
-                player = document.createElement("div");
-                player.className = "video_container";
-                player.id = `user_container_${user.uid}`;
-                let playerContainerPlayer = document.createElement("div");
-                playerContainerPlayer.className = "video_player";
-                playerContainerPlayer.id = `user_${user.uid}`;
-                player.appendChild(playerContainerPlayer);
+            console.log("Client Remote Users ===> ", client.remoteUsers);
+            console.log("Client Local Tracks ===> ", client.localTracks);
+            console.log("Screen Client Local Tracks ===> ", screenClient.localTracks);
 
-                let streams = document.querySelector("#streams");
-                streams.appendChild(player);
+            try {
+                await client.subscribe(user, mediaType);
+                console.log(`User ${user.uid} was subscribed successfully`);
 
-                user.videoTrack.play(`user_${user.uid}`);
-            } else {
-                let player = document.querySelector(`#user_stream_container_${user.uid}`);
-                if (player) player.remove();
+                if (mediaType === "video") {
+                    if (screen !== true) {
+                        console.log("Plain Execution");
+                        let player = document.querySelector(`#user_container_${user.uid}`);
+                        if (player) player.remove();
 
-                player = document.createElement("div");
-                player.className = "video_container";
-                player.id = `user_stream_container_${user.uid}`;
-                let playerContainerPlayer = document.createElement("div");
-                playerContainerPlayer.className = "video_player";
-                playerContainerPlayer.id = `user_stream_${user.uid}`;
-                player.appendChild(playerContainerPlayer);
+                        player = document.createElement("div");
+                        player.className = "video_container";
+                        player.id = `user_container_${user.uid}`;
+                        let playerContainerPlayer = document.createElement("div");
+                        playerContainerPlayer.className = "video_player";
+                        playerContainerPlayer.id = `user_${user.uid}`;
+                        player.appendChild(playerContainerPlayer);
 
-                document.querySelector("#streams")?.appendChild(player);
-                user.videoTrack.play(`user_stream_${user.uid}`);
+                        let streams = document.querySelector("#streams");
+                        streams.appendChild(player);
+
+                        user.videoTrack.play(`user_${user.uid}`);
+                    } else {
+                        console.log("Stream Execution");
+                        let player = document.querySelector(`#user_stream_container_${user.uid}`);
+                        if (player) player.remove();
+
+                        player = document.createElement("div");
+                        player.className = "video_container";
+                        player.id = `user_stream_container_${user.uid}`;
+                        let playerContainerPlayer = document.createElement("div");
+                        playerContainerPlayer.className = "video_player";
+                        playerContainerPlayer.id = `user_stream_${user.uid}`;
+                        player.appendChild(playerContainerPlayer);
+
+                        document.querySelector("#streams").appendChild(player);
+                        user.videoTrack.play(`user_stream_${user.uid}`);
+                    }
+                }
+
+                if (mediaType === "audio") user.audioTrack.play();
+            } catch (err) {
+                if (err.code === "INVALID_REMOTE_USER") console.log("Unknown user was encountered ====> ", user);
+                else throw err;
             }
         }
-
-        if (mediaType === "audio") user.audioTrack.play();
     }
 
     async function handleUserLeft(user) {
