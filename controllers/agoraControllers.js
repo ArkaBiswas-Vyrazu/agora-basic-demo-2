@@ -5,6 +5,8 @@ import { generate } from "random-words";
 import { events } from "../events.js";
 const prisma = new PrismaClient();
 
+let pseudoUuids = [];
+
 async function createHostToken(req, res) {
     const channelName = req.body.channel || generate({ exactly: 3, formatter: (word) => word.toUpperCase() }).join("-");
 
@@ -24,7 +26,8 @@ async function createHostToken(req, res) {
         });
     }
 
-    let pseudoUuid = ("screen_token" in req.body && req.body.screen_token) ? Math.floor(Math.random() * 10000) : null
+    let pseudoUuid = ("screen_token" in req.body && req.body.screen_token) ? Math.floor(Math.random() * 10000).toString() : null
+    if (pseudoUuid) pseudoUuids.push(pseudoUuid);
 
     const token = RtcTokenBuilder.buildTokenWithUid(
         process.env.AGORA_APP_ID,
@@ -102,9 +105,15 @@ async function handleAgoraAudienceEventStream(req, res) {
     });
 }
 
+async function checkScreenUid(req, res) {
+    console.log(req.query.uid, pseudoUuids, pseudoUuids.includes(req.query.uid));
+    res.status(200).json({ status: pseudoUuids.includes(req.query.uid)});
+}
+
 export const agoraControllers = {
     createHostToken,
     createAudienceToken,
     notifyAudienceStatus,
-    handleAgoraAudienceEventStream
+    handleAgoraAudienceEventStream,
+    checkScreenUid
 }
