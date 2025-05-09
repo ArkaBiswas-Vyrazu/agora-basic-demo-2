@@ -24,7 +24,8 @@ async function listUsers(req, res) {
                 name: true,
                 uuid: true,
                 created_at: true,
-                updated_at: true
+                updated_at: true,
+                password: false
             },
             where: {
                 NOT: {

@@ -4,6 +4,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host"}) // For screen recording
 
     let screenUID = null;
+    let screenTrack = null;
     let localTracks = [];
     let remoteUsers = {};
 
@@ -12,6 +13,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         let data = await response.json();
         return data;
     });
+
+    screenClient.on("user-published", async (user, mediaType) => await handleUserJoined(user, mediaType, true));
 
     async function listUsers(response) {
         let users = await response.json();
@@ -110,34 +113,6 @@ window.addEventListener("DOMContentLoaded", async () => {
                 alert("Microphone was disconnected");
                 document.querySelector("#mic")?.remove();
 
-                // This part never works..... beacuse Agora does not allow device changed in an active stream
-                // client.onMicrophoneChanged = async (info) => {
-                //     console.log("Microphone was either removed or changed");
-                //     if (info.status === "ACTIVE") {
-                //         await micTrack.setDevice(info.device.deviceId);
-
-                //         document.querySelector("#mic")?.remove();
-                //         const micButton = document.createElement("button");
-                //         micButton.id = "mic";
-                //         micButton.textContent = "Mic On";
-                //         micButton.addEventListener("click", async (event) => {
-                //             if (localTracks[0].muted) {
-                //                 await localTracks[0].setMuted(false);
-                //                 event.target.textContent = "Mic On";
-                //                 event.target.style.backgroundColor = "cadetblue"
-                //             } else {
-                //                 await localTracks[0].setMuted(true);
-                //                 event.target.textContent = "Mic Off";
-                //                 event.target.style.backgroundColor = "#e9e9ed";
-                //             }
-                //         });
-
-                //         document.querySelector("#controls")?.append(micButton);
-
-                //         alert(`Microphone ${info.device.label} has been connected successfully`);
-                //     }
-                // }
-
             });
         } catch (err) {
             micTrack = null;
@@ -185,21 +160,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         await client.join(APP_ID, channel, token, (role === "host" && !force) ? host : user);
         localTracks = await createLocalTracks();
 
-        /* Functionality for screen recording */
-        // let screenTrack = null;
-        // try {
-        //     await screenClient.join(APP_ID, channel, token, (role === "host" && !force) ? host : user);
-        //     screenTrack = await screenClient.createScreenVideoTrack({encoderConfig: "1080p_1"});
-        //     await screenClient.publish(screenTrack);
-        // } catch (err) {
-        //     if (screenTrack) await screenClient.unpublish(screenTrack);
-        //     await screenClient.leave()
-        //     console.log("Error Encountered while trying to start screen record stream", err);
-        // }
-        
-        /* End */
-
-
         let playerContainer = document.createElement("div");
         playerContainer.className = "video_container";
         playerContainer.id = `user_container_${(role === "host") ? host : user}`;
@@ -221,7 +181,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         controls.appendChild(leaveButton);
 
         if (role === "host") {
-            let screenTrack = null;
+            screenTrack = null;
             let screenToken = null;
 
             const screenRecordButton = document.createElement("button");
@@ -263,18 +223,25 @@ window.addEventListener("DOMContentLoaded", async () => {
                         screenTrack.play(`user_stream_${screenUID}`);
                         await screenClient.publish(screenTrack);
                     } catch (err) {
-                        if (screenTrack) await screenClient.unpublish(screenTrack);
+                        if (screenTrack) {
+                            await screenTrack.stop()
+                            await screenTrack.close();
+                            await screenClient.unpublish(screenTrack);
+                        }
                         screenTrack = null;
                         await screenClient.leave();
+                        document.querySelector(`#user_stream_container_${screenUID}`)?.remove();
                         screenUID = null;
                         screenToken = null;
                         console.log("Error encountered when trying to start screen record ===> ", err);
                     }
                 } else {
+                    await screenTrack.stop()
+                    await screenTrack.close();
                     await screenClient.unpublish(screenTrack);
-                    screenClient = null;
+                    screenTrack = null;
                     await screenClient.leave();
-                    document.querySelector(`#user_stream_${screenUID}`)?.remove();
+                    document.querySelector(`#user_stream_container_${screenUID}`)?.remove();
                     screenUID = null;
                     screenToken = null;
                 }
@@ -384,18 +351,33 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         if (localTracks) await client.unpublish(localTracks);
         await client.leave();
+
+        if (screenTrack) {
+            await screenTrack.stop();
+            await screenTrack.close()
+            await screenClient.unpublish(screenTrack);
+            screenTrack = null;
+            await screenClient.leave();
+            screenUID = null;
+            screenToken = null;
+        }
+
         document.querySelector("#streams").innerHTML = "";
         document.querySelector("#controls").remove();
     }
 
-    async function handleUserJoined(user, mediaType) {
-        if (!user.uid in remoteUsers && user.uid !== logged_in_user && user.uid !== screenUID) {
-            remoteUsers[user.uid] = user;
-            console.log("A new user joined ===> ", user.uid);
-            await client.subscribe(user, mediaType);
-            console.log(`User ${user.uid} was subscribed successfully`);
 
-            if (mediaType === "video") {
+    async function handleUserJoined(user, mediaType, screen=false) {
+        // if (!(user.uid in remoteUsers) && user.uid !== logged_in_user.uuid && (screenUID === null || user.uid !== screenUID)) { // Wrong
+        if (screen === true) console.log('This was triggered by screenClient user-published');
+
+        remoteUsers[user.uid] = user;
+        console.log("A new user joined ===> ", user.uid);
+        (screen === false) ? await client.subscribe(user, mediaType) : await screenClient.subscribe(user, mediaType);
+        console.log(`User ${user.uid} was subscribed successfully`);
+
+        if (mediaType === "video") {
+            if (screen !== true) {
                 let player = document.querySelector(`#user_container_${user.uid}`);
                 if (player) player.remove();
 
@@ -411,10 +393,24 @@ window.addEventListener("DOMContentLoaded", async () => {
                 streams.appendChild(player);
 
                 user.videoTrack.play(`user_${user.uid}`);
-            }
+            } else {
+                let player = document.querySelector(`#user_stream_container_${user.uid}`);
+                if (player) player.remove();
 
-            if (mediaType === "audio") user.audioTrack.play();
-        } else console.log("Successfully avoided double billing!!!");
+                player = document.createElement("div");
+                player.className = "video_container";
+                player.id = `user_stream_container_${user.uid}`;
+                let playerContainerPlayer = document.createElement("div");
+                playerContainerPlayer.className = "video_player";
+                playerContainerPlayer.id = `user_stream_${user.uid}`;
+                player.appendChild(playerContainerPlayer);
+
+                document.querySelector("#streams")?.appendChild(player);
+                user.videoTrack.play(`user_stream_${user.uid}`);
+            }
+        }
+
+        if (mediaType === "audio") user.audioTrack.play();
     }
 
     async function handleUserLeft(user) {
