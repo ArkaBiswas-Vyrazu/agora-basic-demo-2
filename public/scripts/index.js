@@ -1,6 +1,11 @@
 window.addEventListener("DOMContentLoaded", async () => {
     const APP_ID = "839346d06e0b46298c3468d4bf7c3505";
     const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+    const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" }) // For screen recording
+
+    let screenUID = null;
+    let screenTrack = null;
+    let localTracks = [];
     let remoteUsers = {};
 
     const usersList = document.querySelector("#users");
@@ -8,6 +13,11 @@ window.addEventListener("DOMContentLoaded", async () => {
         let data = await response.json();
         return data;
     });
+
+    // screenClient.on("user-published", async (user, mediaType) => {
+    //     console.log('user-published was called on screenClient ===> ', user);
+    //     await handleUserJoined(user, mediaType, true)
+    // });
 
     async function listUsers(response) {
         let users = await response.json();
@@ -106,34 +116,6 @@ window.addEventListener("DOMContentLoaded", async () => {
                 alert("Microphone was disconnected");
                 document.querySelector("#mic")?.remove();
 
-                // This part never works..... beacuse Agora does not allow device changed in an active stream
-                // client.onMicrophoneChanged = async (info) => {
-                //     console.log("Microphone was either removed or changed");
-                //     if (info.status === "ACTIVE") {
-                //         await micTrack.setDevice(info.device.deviceId);
-
-                //         document.querySelector("#mic")?.remove();
-                //         const micButton = document.createElement("button");
-                //         micButton.id = "mic";
-                //         micButton.textContent = "Mic On";
-                //         micButton.addEventListener("click", async (event) => {
-                //             if (localTracks[0].muted) {
-                //                 await localTracks[0].setMuted(false);
-                //                 event.target.textContent = "Mic On";
-                //                 event.target.style.backgroundColor = "cadetblue"
-                //             } else {
-                //                 await localTracks[0].setMuted(true);
-                //                 event.target.textContent = "Mic Off";
-                //                 event.target.style.backgroundColor = "#e9e9ed";
-                //             }
-                //         });
-
-                //         document.querySelector("#controls")?.append(micButton);
-
-                //         alert(`Microphone ${info.device.label} has been connected successfully`);
-                //     }
-                // }
-
             });
         } catch (err) {
             micTrack = null;
@@ -149,6 +131,7 @@ window.addEventListener("DOMContentLoaded", async () => {
             cameraTrack = null;
         }
 
+        localTracks = [micTrack, cameraTrack];
         return [micTrack, cameraTrack];
     }
 
@@ -187,7 +170,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         playerContainerPlayer.className = "video_player";
         playerContainerPlayer.id = `user_${(role === "host") ? host : user}`;
         playerContainer.appendChild(playerContainerPlayer);
-
         streams.appendChild(playerContainer);
 
         const streamWrapper = document.querySelector("#stream-wrapper");
@@ -200,6 +182,81 @@ window.addEventListener("DOMContentLoaded", async () => {
         leaveButton.textContent = "Leave Stream";
         leaveButton.addEventListener("click", leaveAndRemoveLocalStream);
         controls.appendChild(leaveButton);
+
+        if (role === "host") {
+            screenTrack = null;
+            let screenToken = null;
+
+            const screenRecordButton = document.createElement("button");
+            screenRecordButton.id = "record";
+            const screenRecordButtonImg = document.createElement("img");
+            screenRecordButtonImg.src = "/assets/video-solid.svg";
+            screenRecordButtonImg.style.height = "15px";
+            screenRecordButtonImg.style.maxWidth = "auto";
+            screenRecordButton.appendChild(screenRecordButtonImg);
+            screenRecordButton.addEventListener("click", async (event) => {
+                if (screenTrack === null) {
+                    try {
+                        screenTokenAndUID = (
+                            screenToken ||
+                            await fetch(`/agora/token/host/create`, {
+                                method: "POST",
+                                options: { "Content-Type": "application/x-www-form-urlencoded" },
+                                body: new URLSearchParams({ host, channel, screen_token: true })
+                            }).then(async response => {
+                                let data = await response.json()
+                                return data;
+                            })
+                        );
+                        screenUID = screenTokenAndUID.generated;
+                        screenToken = screenTokenAndUID.token;
+
+                        screenClient.on("user-published", async (user, mediaType) => {
+                            console.log('user-published was called on screenClient ===> ', user);
+                            await handleUserJoined(user, mediaType, true)
+                        });
+
+                        screenUID = await screenClient.join(APP_ID, channel, screenToken, screenUID);
+                        screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" });
+
+                        const streamPlayerContainer = document.createElement("div");
+                        streamPlayerContainer.className = "video_container";
+                        streamPlayerContainer.id = `user_stream_container_${screenUID}`;
+                        let streamPlayerContainerPlayer = document.createElement("div");
+                        streamPlayerContainerPlayer.className = "video_container";
+                        streamPlayerContainerPlayer.id = `user_stream_${screenUID}`;
+                        streamPlayerContainer.appendChild(streamPlayerContainerPlayer);
+                        document.querySelector("#streams").appendChild(streamPlayerContainer);
+
+                        screenTrack.play(`user_stream_${screenUID}`);
+                        await screenClient.publish(screenTrack);
+                    } catch (err) {
+                        if (screenTrack) {
+                            await screenTrack.stop()
+                            await screenTrack.close();
+                            await screenClient.unpublish(screenTrack);
+                        }
+                        screenTrack = null;
+                        await screenClient.leave();
+                        document.querySelector(`#user_stream_container_${screenUID}`)?.remove();
+                        screenUID = null;
+                        screenToken = null;
+                        console.log("Error encountered when trying to start screen record ===> ", err);
+                    }
+                } else {
+                    await screenTrack.stop()
+                    await screenTrack.close();
+                    await screenClient.unpublish(screenTrack);
+                    screenTrack = null;
+                    await screenClient.leave();
+                    document.querySelector(`#user_stream_container_${screenUID}`)?.remove();
+                    screenUID = null;
+                    screenToken = null;
+                }
+            });
+            controls.appendChild(screenRecordButton);
+
+        }
 
         if (localTracks[0]) {
             const micButton = document.createElement("button")
@@ -302,40 +359,106 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         if (localTracks) await client.unpublish(localTracks);
         await client.leave();
+
+        if (screenTrack) {
+            await screenTrack.stop();
+            await screenTrack.close()
+            await screenClient.unpublish(screenTrack);
+            screenTrack = null;
+            await screenClient.leave();
+            screenUID = null;
+            screenToken = null;
+        }
+
         document.querySelector("#streams").innerHTML = "";
         document.querySelector("#controls").remove();
     }
 
-    async function handleUserJoined(user, mediaType) {
-        remoteUsers[user.uid] = user;
-        console.log("A new user joined ===> ", user.uid);
-        await client.subscribe(user, mediaType);
-        console.log(`User ${user.uid} was subscribed successfully`);
+    async function checkScreenUid(user) {
+        let response = await fetch(`/agora/screen/check?uid=${user.uid}`)
+        .then(async response => {
+            let data = await response.json();
+            return data;
+        });
+        return response.status;
+    }
 
-        if (mediaType === "video") {
-            let player = document.querySelector(`#user_container_${user.uid}`);
-            if (player) player.remove();
+    async function handleUserJoined(user, mediaType = null, screen = false) {
+        console.log("Remote Users right now ===> ", remoteUsers);
+        console.log("Debug Info ====> ");
+        console.log("Remote user received ===> ", user, " - matches logged in user: ", user.uid === logged_in_user.uuid);
+        console.log("MediaType ===> ", mediaType);
+        console.log("User audio track ===> ", user.audioTrack, user.hasAudio);
+        console.log("User video track ===> ", user.videoTrack, user.hasVideo);
 
-            player = document.createElement("div");
-            player.className = "video_container";
-            player.id = `user_container_${user.uid}`;
-            let playerContainerPlayer = document.createElement("div");
-            playerContainerPlayer.className = "video_player";
-            playerContainerPlayer.id = `user_${user.uid}`;
-            player.appendChild(playerContainerPlayer);
+        if (!([user, mediaType] in remoteUsers) &&
+            user.uid !== logged_in_user.uuid &&
+            user.uid !== client.uid &&
+            (screenUID === null || user.uid !== screenUID)) {
 
-            let streams = document.querySelector("#streams");
-            streams.appendChild(player);
+            if (screen === true) console.log('This was triggered by screenClient user-published');
 
-            user.videoTrack.play(`user_${user.uid}`);
+            remoteUsers[user.uid] = [user, mediaType];
+            console.log("A new user joined ===> ", user.uid, mediaType);
+
+            console.log("Client Remote Users ===> ", client.remoteUsers);
+            console.log("Client Local Tracks ===> ", client.localTracks);
+            console.log("Screen Client Local Tracks ===> ", screenClient.localTracks);
+
+            try {
+                let status = await checkScreenUid(user);
+                console.log(status);
+                if (user.uid === screenUID || status || screen === false) {
+                    await client.subscribe(user, mediaType);
+                    console.log(`User ${user.uid} was subscribed successfully`);
+                    if (mediaType === "video") {
+                        if (screen !== true) {
+                            console.log("Plain Execution");
+                            let player = document.querySelector(`#user_container_${user.uid}`);
+                            if (player) player.remove();
+
+                            player = document.createElement("div");
+                            player.className = "video_container";
+                            player.id = `user_container_${user.uid}`;
+                            let playerContainerPlayer = document.createElement("div");
+                            playerContainerPlayer.className = "video_player";
+                            playerContainerPlayer.id = `user_${user.uid}`;
+                            player.appendChild(playerContainerPlayer);
+
+                            let streams = document.querySelector("#streams");
+                            streams.appendChild(player);
+
+                            user.videoTrack.play(`user_${user.uid}`);
+                        } else {
+                            console.log("Stream Execution");
+                            let player = document.querySelector(`#user_stream_container_${user.uid}`);
+                            if (player) player.remove();
+
+                            player = document.createElement("div");
+                            player.className = "video_container";
+                            player.id = `user_stream_container_${user.uid}`;
+                            let playerContainerPlayer = document.createElement("div");
+                            playerContainerPlayer.className = "video_player";
+                            playerContainerPlayer.id = `user_stream_${user.uid}`;
+                            player.appendChild(playerContainerPlayer);
+
+                            document.querySelector("#streams").appendChild(player);
+                            user.videoTrack.play(`user_stream_${user.uid}`);
+                        }
+                    }
+
+                    if (mediaType === "audio") user.audioTrack.play();
+                }
+            } catch (err) {
+                if (err.code === "INVALID_REMOTE_USER") console.log("Unknown user was encountered ====> ", user);
+                else throw err;
+            }
         }
-
-        if (mediaType === "audio") user.audioTrack.play();
     }
 
     async function handleUserLeft(user) {
         delete remoteUsers[user.uid];
-        document.querySelector(`#user_container_${user.uid}`).remove();
+        document.querySelector(`#user_container_${user.uid}`)?.remove();
     }
 
     fetch(`/user/list`)

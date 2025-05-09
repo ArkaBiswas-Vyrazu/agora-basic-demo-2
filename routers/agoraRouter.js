@@ -34,4 +34,8 @@ agoraRouter.get("/events", async (req, res) => {
     await controllers.agoraControllers.handleAgoraAudienceEventStream(req, res);
 });
 
+agoraRouter.get("/screen/check", async (req, res) => {
+    await controllers.agoraControllers.checkScreenUid(req, res);
+});
+
 export { agoraRouter };
