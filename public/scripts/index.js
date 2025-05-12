@@ -1,6 +1,6 @@
 window.addEventListener("DOMContentLoaded", async () => {
     const APP_ID = "839346d06e0b46298c3468d4bf7c3505";
-    const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+    const client = AgoraRTC.createClient({ mode: "live", codec: "h264" });
     const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" }) // For screen recording
 
     let screenUID = null;
@@ -255,7 +255,6 @@ window.addEventListener("DOMContentLoaded", async () => {
                 }
             });
             controls.appendChild(screenRecordButton);
-
         }
 
         if (localTracks[0]) {
@@ -315,7 +314,130 @@ window.addEventListener("DOMContentLoaded", async () => {
             controls.appendChild(cameraButton);
         }
 
+        /* ################### Chat Functionality ####################### */
+        // const chatButton = document.createElement("button");
+        // chatButton.id = "chat-button";
+
+        // const chatButtonImg = document.createElement("img");
+        // chatButtonImg.src = "/assets/chat.png";
+        // chatButtonImg.style.height = "15px";
+        // chatButtonImg.style.maxWidth = "auto";
+        // chatButtonImg.style.marginTop = "2%";
+        // chatButton.appendChild(chatButtonImg);
+
+        // const chatClient = new AgoraChat.Connection({appKey:  APP_ID});
+        // chatClient.addEventHandler("connection&message", {
+        //     onConnected: () => {
+        //         const connSuccessMessage = document.createElement("li");
+        //         connSuccessMessage.textContent = "User chat connection successful";
+        //         document.querySelector("#list").appendChild(connSuccessMessage);
+        //     },
+        //     onDisconnected: () => {
+        //         const connDisconnMessage = document.createElement("li");
+        //         connDisconnMessage.textContent = "User chat disconnected";
+        //         document.querySelector("#list").appendChild(connDisconnMessage);
+        //     },
+        //     onError: (err) => console.log("Chat Client Error ===> ", err),
+        //     onTextMessage: (message) => {
+        //         const messageElement = document.createElement("li");
+        //         messageElement.textContent = `${message.from}: ${message.msg}`;
+        //         document.querySelector("#messages").appendChild(messageElement);
+        //     }
+        // })
+
+        // chatButton.addEventListener("click", async (event) => {
+        //     let chat = document.querySelector("#chat");
+        //     if (!chat) {
+        //         await chatClient.open({
+        //             user: (role === "host" && !force) ? host : user,
+        //             accessToken: token
+        //         });
+
+        //         chat = document.createElement("div");
+        //         chat.id = "chat";
+        //         chat.style.backgroundColor = "rgb(59, 53, 53)";
+        //         chat.style.height = "90vh";
+        //         chat.style.width = "25vw";
+
+        //         const messages = document.createElement("ul");
+        //         messages.id = "messages";
+        //         chat.appendChild(messages);
+
+        //         const sendMessageForm = document.createElement("form");
+        //         const messageInput = document.createElement("input");
+        //         messageInput.type = "text";
+        //         messageInput.placeholder = "Send message to all";
+        //         messageInput.name = "message";
+        //         sendMessageForm.appendChild(messageInput);
+        //         const messageSubmitButton = document.createElement("button");
+        //         messageSubmitButton.type = "submit";
+        //         messageSubmitButton.value = "Send";
+        //         sendMessageForm.appendChild(messageSubmitButton);
+        //         sendMessageForm.addEventListener("submit", async (event) => {
+        //             event.preventDefault();
+
+        //             // Need to ask requirement
+        //             const options = {
+        //                 chatType: "groupChat", // or chatRoom
+
+        //             }
+        //         })
+
+        //         document.querySelector("#stream-main-container").appendChild(chat);
+        //     } else {
+        //         chatClient.close();
+        //         chat.remove();
+        //     }
+        // });
+
+        // controls.appendChild(chatButton);
+        /* ############################################################## */
+
         // controls.append(leaveButton, micButton, cameraButton);
+
+        /* ################### Livestream Functionality ####################### */
+        const liveStreamButton = document.createElement("button");
+        liveStreamButton.id = "live-stream";
+
+        const liveStreamButtonImg = document.createElement("img");
+        liveStreamButtonImg.src = "/assets/upload-solid.svg";
+        liveStreamButtonImg.style.height = "15px";
+        liveStreamButtonImg.style.maxWidth = "auto";
+        liveStreamButtonImg.style.marginTop = "2%";
+        liveStreamButton.appendChild(liveStreamButtonImg);
+
+        let liveStreamStatus = false;
+        liveStreamButton.addEventListener("click", async (event) => {
+            const url = `rtmp://localhost/live/${channel}`; // Test RTMP URL (Using nginx)
+            console.log("RTMP URL ===> ", url);
+            if (liveStreamStatus === false) {
+                try {
+                    await client.startLiveStreaming(url);
+                    console.log(`Live stream successfully running at ${url}`);
+                    liveStreamStatus = true;
+                } catch (err) {
+                    try {
+                        await client.stopLiveStreaming(url);
+                    } catch (err) {console.log("Error Encountered while trying to stop live streaming ====> ", err)};
+                    liveStreamStatus = false;
+                    console.log("Error Encountered while trying to start live stream ====> ", err);
+                }
+            } else {
+                try {
+                    await client.stopLiveStreaming(url);
+                    console.log(`Live streaming at url ${url} successfully stopped`);
+                    liveStreamStatus = false;
+                } catch (err) {
+                    liveStreamStatus = false;
+                    console.log("Error encountered while trying to stop live streaming ====> ", err);
+                }
+            }
+        });
+
+        controls.appendChild(liveStreamButton);
+        /* #################################################################### */
+
+
         streamWrapper.appendChild(controls);
 
         client.enableAudioVolumeIndicator();
@@ -372,38 +494,39 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         document.querySelector("#streams").innerHTML = "";
         document.querySelector("#controls").remove();
+        document.querySelector("#chat")?.remove();
     }
 
     async function checkScreenUid(user) {
         let response = await fetch(`/agora/screen/check?uid=${user.uid}`)
-        .then(async response => {
-            let data = await response.json();
-            return data;
-        });
+            .then(async response => {
+                let data = await response.json();
+                return data;
+            });
         return response.status;
     }
 
     async function handleUserJoined(user, mediaType = null, screen = false) {
-        console.log("Remote Users right now ===> ", remoteUsers);
-        console.log("Debug Info ====> ");
-        console.log("Remote user received ===> ", user, " - matches logged in user: ", user.uid === logged_in_user.uuid);
-        console.log("MediaType ===> ", mediaType);
-        console.log("User audio track ===> ", user.audioTrack, user.hasAudio);
-        console.log("User video track ===> ", user.videoTrack, user.hasVideo);
+        // console.log("Remote Users right now ===> ", remoteUsers);
+        // console.log("Debug Info ====> ");
+        // console.log("Remote user received ===> ", user, " - matches logged in user: ", user.uid === logged_in_user.uuid);
+        // console.log("MediaType ===> ", mediaType);
+        // console.log("User audio track ===> ", user.audioTrack, user.hasAudio);
+        // console.log("User video track ===> ", user.videoTrack, user.hasVideo);
 
         if (!([user, mediaType] in remoteUsers) &&
             user.uid !== logged_in_user.uuid &&
             user.uid !== client.uid &&
             (screenUID === null || user.uid !== screenUID)) {
 
-            if (screen === true) console.log('This was triggered by screenClient user-published');
+            // if (screen === true) console.log('This was triggered by screenClient user-published');
 
             remoteUsers[user.uid] = [user, mediaType];
             console.log("A new user joined ===> ", user.uid, mediaType);
 
-            console.log("Client Remote Users ===> ", client.remoteUsers);
-            console.log("Client Local Tracks ===> ", client.localTracks);
-            console.log("Screen Client Local Tracks ===> ", screenClient.localTracks);
+            // console.log("Client Remote Users ===> ", client.remoteUsers);
+            // console.log("Client Local Tracks ===> ", client.localTracks);
+            // console.log("Screen Client Local Tracks ===> ", screenClient.localTracks);
 
             try {
                 let status = await checkScreenUid(user);

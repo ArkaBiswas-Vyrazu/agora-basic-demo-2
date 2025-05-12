@@ -31,12 +31,15 @@
         <h2>Your channels</h2>
         <ul id="channels"></ul>
 
-        <div id="stream-wrapper">
-            <div id="streams"></div>
+        <div id="stream-main-container" style="display: flex; justify-content: center;">
+            <div id="stream-wrapper">
+                <div id="streams"></div>
+            </div>
         </div>
 
         <script src="scripts/index.js" defer></script>
         <script src="scripts/agora.js" defer></script>
+        <script src="scripts/agora-chat.js" defer></script>
         <script>
             const eventSource = new EventSource(`/agora/events`, {withCredentials: true});
             eventSource.onmessage = (event) => {
@@ -44,13 +47,6 @@
                 newElement.textContent = event.data;
                 document.querySelector("#list").appendChild(newElement);
             }
-
-            eventSource.addEventListener("ping", event => {
-                const newElement = document.createElement("li");
-                const time = JSON.parse(event.data).time;
-                newElement.textContent = `ping at ${time}`;
-                document.querySelector("#list").appendChild(newElement);
-            });
 
             eventSource.onerror = (err) => {
                 console.error("EventSource failed: ", err);
