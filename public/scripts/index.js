@@ -18,6 +18,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     let chatGroupHost = false; // Horrible idea, but should work for now
     let localTracks = [];
     let remoteUsers = {};
+    let messages = [];
 
     const usersList = document.querySelector("#users");
     let logged_in_user = await fetch(`/user/logged_in`).then(async response => {
@@ -602,7 +603,8 @@ window.addEventListener("DOMContentLoaded", async () => {
             accessToken: await Promise.resolve(chatUserToken)
         }));
 
-        await WebIM.conn.addEventHandler("connection&message", {
+        // await WebIM.conn.addEventHandler("connection&message", {
+        await WebIM.conn.addEventHandler("connection&message&group", {
             onConnected: () => {
                 const connSuccessMessage = document.createElement("li");
                 connSuccessMessage.textContent = "User chat connection successful";
@@ -615,13 +617,12 @@ window.addEventListener("DOMContentLoaded", async () => {
             },
             onError: (err) => console.log("Chat Client Error ===> ", err),
             onTextMessage: (message) => {
+                console.log("Message received ===> ", message.from, message.msg);
+                messages.push(`${message.from}: ${message.msg}`);
                 const messageElement = document.createElement("li");
                 messageElement.textContent = `${message.from}: ${message.msg}`;
                 document.querySelector("#messages").appendChild(messageElement);
-            }
-        });
-
-        await WebIM.conn.addEventHandler("group", {
+            },
             onGroupEvent: function (msg) {
                 const statusElement = document.createElement("li");
                 switch (msg.operation) {
@@ -639,6 +640,25 @@ window.addEventListener("DOMContentLoaded", async () => {
                 }
             }
         });
+
+        // await WebIM.conn.addEventHandler("group", {
+        //     onGroupEvent: function (msg) {
+        //         const statusElement = document.createElement("li");
+        //         switch (msg.operation) {
+        //             case "create":
+        //                 statusElement.textContent = "Group Created Successfully!!";
+        //                 console.log("Group Created Successfully ===> ", msg);
+        //                 break;
+        //             case "destroy":
+        //                 statusElement.textContent = "Group destroyed Successfully!!";
+        //                 console.log("Group destroyed successfully ===> ", msg);
+        //                 break;
+        //             default:
+        //                 console.log("Chat Client handlerId event called ====> ", msg);
+        //                 break;
+        //         }
+        //     }
+        // });
 
 
         if (role === "host") {
@@ -699,9 +719,14 @@ window.addEventListener("DOMContentLoaded", async () => {
                 chat.style.height = "90vh";
                 chat.style.width = "25vw";
 
-                const messages = document.createElement("ul");
-                messages.id = "messages";
-                chat.appendChild(messages);
+                const messagesList = document.createElement("ul");
+                messagesList.id = "messages";
+                for (const message of messages) {
+                    const messageElement = document.createElement("li");
+                    messageElement.textContent = message;
+                    messagesList.appendChild(messageElement);
+                }
+                chat.appendChild(messagesList);
 
                 const sendMessageForm = document.createElement("form");
                 const messageInput = document.createElement("input");
@@ -711,7 +736,7 @@ window.addEventListener("DOMContentLoaded", async () => {
                 sendMessageForm.appendChild(messageInput);
                 const messageSubmitButton = document.createElement("button");
                 messageSubmitButton.type = "submit";
-                messageSubmitButton.value = "Send";
+                messageSubmitButton.textContent = "Send";
                 sendMessageForm.appendChild(messageSubmitButton);
                 sendMessageForm.addEventListener("submit", async (event) => {
                     event.preventDefault();
@@ -729,6 +754,11 @@ window.addEventListener("DOMContentLoaded", async () => {
                     WebIM.conn.send(msg)
                         .then((res) => console.log("Send message success ===> ", res))
                         .catch((e) => console.log("Send message fail ===> ", e));
+
+                    messages.push(`Me: ${event.target.elements.message.value}`);
+                    const messageElement = document.createElement("li");
+                    messageElement.textContent = `Me: ${event.target.elements.message.value}`;
+                    document.querySelector("#messages").appendChild(messageElement);
                 })
                 chat.appendChild(sendMessageForm);
 
