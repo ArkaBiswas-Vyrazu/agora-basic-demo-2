@@ -37,9 +37,9 @@
             </div>
         </div>
 
-        <script src="scripts/index.js" defer></script>
         <script src="scripts/agora.js" defer></script>
         <script src="scripts/agora-chat.js" defer></script>
+        <script src="scripts/index.js" defer></script>
         <script>
             const eventSource = new EventSource(`/agora/events`, {withCredentials: true});
             eventSource.onmessage = (event) => {

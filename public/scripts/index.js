@@ -1,10 +1,21 @@
 window.addEventListener("DOMContentLoaded", async () => {
-    const APP_ID = "839346d06e0b46298c3468d4bf7c3505";
+    const APP_ID = "";
     const client = AgoraRTC.createClient({ mode: "live", codec: "h264" });
     const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" }) // For screen recording
 
+    const AGORA_CHAT_APP_KEY = ""
+    const AGORA_CHAT_HOST = "";
+    const AGORA_CHAT_ORG_NAME = "";
+    const AGORA_CHAT_APP_NAME = "";
+    WebIM.conn = new WebIM.connection({ appKey: AGORA_CHAT_APP_KEY });
+
     let screenUID = null;
     let screenTrack = null;
+    let chatGroupId = null;
+    let chatUserId = null;
+    let chatAppToken = null;
+    let chatUserToken = null;
+    let chatGroupHost = false; // Horrible idea, but should work for now
     let localTracks = [];
     let remoteUsers = {};
 
@@ -315,85 +326,144 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
 
         /* ################### Chat Functionality ####################### */
-        // const chatButton = document.createElement("button");
-        // chatButton.id = "chat-button";
+        try {
+            // Reference: https://docs.agora.io/en/agora-chat/restful-api/user-system-registration?platform=web#registering-a-user
+            // Required values retrieved from Agora Console
 
-        // const chatButtonImg = document.createElement("img");
-        // chatButtonImg.src = "/assets/chat.png";
-        // chatButtonImg.style.height = "15px";
-        // chatButtonImg.style.maxWidth = "auto";
-        // chatButtonImg.style.marginTop = "2%";
-        // chatButton.appendChild(chatButtonImg);
+            // REST API Auth Tokens
+            chatAppToken = await fetch("/agora/chat/token/create/app", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user: (role === "host" && !force) ? host : user })
+            }).then(async response => {
+                let data = await response.json();
+                return data.token;
+            });
 
-        // const chatClient = new AgoraChat.Connection({appKey:  APP_ID});
-        // chatClient.addEventHandler("connection&message", {
-        //     onConnected: () => {
-        //         const connSuccessMessage = document.createElement("li");
-        //         connSuccessMessage.textContent = "User chat connection successful";
-        //         document.querySelector("#list").appendChild(connSuccessMessage);
-        //     },
-        //     onDisconnected: () => {
-        //         const connDisconnMessage = document.createElement("li");
-        //         connDisconnMessage.textContent = "User chat disconnected";
-        //         document.querySelector("#list").appendChild(connDisconnMessage);
-        //     },
-        //     onError: (err) => console.log("Chat Client Error ===> ", err),
-        //     onTextMessage: (message) => {
-        //         const messageElement = document.createElement("li");
-        //         messageElement.textContent = `${message.from}: ${message.msg}`;
-        //         document.querySelector("#messages").appendChild(messageElement);
-        //     }
-        // })
+            console.log(chatAppToken);
+            // Need to look into hiding this, this is way too sensitive !!!!
+            let checkUserExists = await fetch(`https://${AGORA_CHAT_HOST}/${AGORA_CHAT_ORG_NAME}/${AGORA_CHAT_APP_NAME}/users/${logged_in_user.name}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${chatAppToken}`
+                }
+            }).then(async response => {
+                let data = await response.json();
+                return data;
+            }).catch(err => {
+                console.error("Error encountered while trying to check if user exists ===> ", err);
+            });
 
-        // chatButton.addEventListener("click", async (event) => {
-        //     let chat = document.querySelector("#chat");
-        //     if (!chat) {
-        //         await chatClient.open({
-        //             user: (role === "host" && !force) ? host : user,
-        //             accessToken: token
-        //         });
+            // This should always be the case, but in case it isn't, we should look
+            // into the security of the chat sdk, considering we are revealing everything
+            // here...
+            if (checkUserExists.count !== 1 && !checkUserExists.entities) {
+                console.log("Attempting to register new user")
+                console.log(checkUserExists);
 
-        //         chat = document.createElement("div");
-        //         chat.id = "chat";
-        //         chat.style.backgroundColor = "rgb(59, 53, 53)";
-        //         chat.style.height = "90vh";
-        //         chat.style.width = "25vw";
+                // Registering user if user does not exist
+                // let registerResponse = await fetch(
+                    // `https://${AGORA_CHAT_HOST}/${AGORA_CHAT_ORG_NAME}/${AGORA_CHAT_APP_NAME}/users`,
+                //     {
+                //         method: "POST",
+                //         headers: {
+                //             Authorization: `Bearer ${chatAppToken}`,
+                //             body: JSON.stringify({ username: logged_in_user.name }),
+                //             "Content-Type": "application/json"
+                //         }
+                //     }).then(async response => {
+                //         let data = await response.json();
+                //         return data;
+                //     })
 
-        //         const messages = document.createElement("ul");
-        //         messages.id = "messages";
-        //         chat.appendChild(messages);
+                // let registerResponse = await fetch(
+                //     "/agora/chat/register/user",
+                //     {
+                //         method: "POST",
+                //         headers: {
+                //             "Content-Type": "application/json"
+                //         },
+                //         body: JSON.stringify({ username: logged_in_user.name, token: chatAppToken })
+                //     }
+                // ).then(async response => {
+                //     let data = await response.json();
+                //     return data;
+                // });
 
-        //         const sendMessageForm = document.createElement("form");
-        //         const messageInput = document.createElement("input");
-        //         messageInput.type = "text";
-        //         messageInput.placeholder = "Send message to all";
-        //         messageInput.name = "message";
-        //         sendMessageForm.appendChild(messageInput);
-        //         const messageSubmitButton = document.createElement("button");
-        //         messageSubmitButton.type = "submit";
-        //         messageSubmitButton.value = "Send";
-        //         sendMessageForm.appendChild(messageSubmitButton);
-        //         sendMessageForm.addEventListener("submit", async (event) => {
-        //             event.preventDefault();
+                let xhttp = new XMLHttpRequest();
+                let registerResponse = null;
 
-        //             // Need to ask requirement
-        //             const options = {
-        //                 chatType: "groupChat", // or chatRoom
+                xhttp.onreadystatechange = async () => {
+                    console.log("xhttp request was updated ===> ", xhttp, xhttp.readyState, xhttp.status);
+                    if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
+                        registerResponse = xhttp.responseText;
+                        console.log("Got a response ====> ", registerResponse);
+                        chatUserId = JSON.parse(registerResponse).entities[0].uuid;
+                        if (chatUserId == null) throw new Error("Chat User ID has ultimately resulted in null even after registration..... ===> ", registerResponse, chatUserId);
+                        else console.log(`Received chat user ID: ${chatUserId}`);
+                    }
+                }
+                xhttp.open("POST", `https://${AGORA_CHAT_HOST}/${AGORA_CHAT_ORG_NAME}/${AGORA_CHAT_APP_NAME}/users`);
+                xhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                xhttp.setRequestHeader("Authorization", `Bearer ${chatAppToken}`);
+                xhttp.send(JSON.stringify({ username: logged_in_user.name }));
+            } else {
+                chatUserId = await Promise.resolve(checkUserExists.entities[0].uuid);
+                if (chatUserId == null) throw new Error("Chat User ID has ultimately resulted in null.....");
+                else console.log(`Received chat user ID: ${chatUserId}`);
+            }
 
-        //             }
-        //         })
+            let chatButton = null;
+            // Registration could take time, so we set a timeout until we receive a valid chatUserId
+            if (chatUserId == null || chatUserId == '') {
+                setTimeout(async () => {
+                    if (chatUserId == null || chatUserId == '') throw new Error("Chat User ID has ultimately resulted in null.......", chatUserId);
+                    else {
+                        // SDK APIs Auth Token
+                        chatUserToken = await fetch("/agora/chat/token/create/user", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            // body: JSON.stringify({ user: chatUserId })
+                            body: JSON.stringify({ user: logged_in_user.name })
+                        }).then(async response => {
+                            let data = await response.json();
+                            return data.token;
+                        });
+                        console.log("Chat User Token After Registration ===> ", chatUserToken);
 
-        //         document.querySelector("#stream-main-container").appendChild(chat);
-        //     } else {
-        //         chatClient.close();
-        //         chat.remove();
-        //     }
-        // });
+                        chatButton = await openChatConnection(chatUserToken, role, host, channel, user);
+                        if (chatButton instanceof HTMLButtonElement) controls.appendChild(chatButton);
+                        else throw new Error("Did not receive a chat button ===> ", chatButton);
+                    }
+                },
+                    "2500");
+            } else {
+                // SDK APIs Auth Token
+                chatUserToken = await fetch("/agora/chat/token/create/user", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    // body: JSON.stringify({ user: chatUserId })
+                    body: JSON.stringify({ user: logged_in_user.name })
+                }).then(async response => {
+                    let data = await response.json();
+                    return data.token;
+                });
+                console.log("Chat User Token ===> ", chatUserToken);
 
-        // controls.appendChild(chatButton);
+                // await WebIM.conn.open({
+                //     // user: (role === "host" && !force) ? host : user,
+                //     user: logged_in_user.name,
+                //     accessToken: await Promise.resolve(chatUserToken)
+                // });
+
+                chatButton = await openChatConnection(chatUserToken, role, host, channel, user);
+                if (chatButton instanceof HTMLButtonElement) controls.appendChild(chatButton);
+                else throw new Error("Did not receive a chat button ===> ", chatButton);
+            }
+        } catch (err) {
+            console.error("Chat functionality was not implemented successfully ===> ", err);
+        }
         /* ############################################################## */
-
-        // controls.append(leaveButton, micButton, cameraButton);
 
         /* ################### Livestream Functionality ####################### */
         const liveStreamButton = document.createElement("button");
@@ -418,7 +488,7 @@ window.addEventListener("DOMContentLoaded", async () => {
                 } catch (err) {
                     try {
                         await client.stopLiveStreaming(url);
-                    } catch (err) {console.log("Error Encountered while trying to stop live streaming ====> ", err)};
+                    } catch (err) { console.log("Error Encountered while trying to stop live streaming ====> ", err) };
                     liveStreamStatus = false;
                     console.log("Error Encountered while trying to start live stream ====> ", err);
                 }
@@ -436,7 +506,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 
         controls.appendChild(liveStreamButton);
         /* #################################################################### */
-
 
         streamWrapper.appendChild(controls);
 
@@ -492,9 +561,182 @@ window.addEventListener("DOMContentLoaded", async () => {
             screenToken = null;
         }
 
+        try {
+            console.log("Deleting Chat Group ID ====> ", chatGroupId);
+            if (chatGroupId) {
+                if (chatGroupHost) {
+                    await WebIM.conn.destroyGroup({ groupId: chatGroupId });
+                    console.log("Successfully destroyed chat group");
+                    chatGroupHost = false;
+                } else {
+                    await WebIM.conn.leaveGroup({ groupId: chatGroupId });
+                    console.log("Successfully left chat group");
+                }
+
+                // Deleting the user as well
+                fetch(
+                    `https://${AGORA_CHAT_HOST}/${AGORA_CHAT_ORG_NAME}/${AGORA_CHAT_APP_NAME}/users/${logged_in_user.name}`,
+                    {
+                        method: "DELETE",
+                        headers: {
+                            Authorization: `Bearer ${chatAppToken}`
+                        }
+                    }
+                ).then(response => response.json())
+                    .then(data => console.log("Delete User response ===> ", data))
+                    .catch(err => console.error("Error encountered while trying to delete user ===> ", err))
+            }
+        } catch (err) {
+            console.error("Error encountered while trying to close chat ====> ", err);
+        }
+
         document.querySelector("#streams").innerHTML = "";
         document.querySelector("#controls").remove();
         document.querySelector("#chat")?.remove();
+    }
+
+    async function openChatConnection(chatUserToken, role, host, channel, user) {
+        await Promise.resolve(WebIM.conn.open({
+            // user: (role === "host" && !force) ? host : user,
+            user: logged_in_user.name,
+            accessToken: await Promise.resolve(chatUserToken)
+        }));
+
+        await WebIM.conn.addEventHandler("connection&message", {
+            onConnected: () => {
+                const connSuccessMessage = document.createElement("li");
+                connSuccessMessage.textContent = "User chat connection successful";
+                document.querySelector("#list").appendChild(connSuccessMessage);
+            },
+            onDisconnected: () => {
+                const connDisconnMessage = document.createElement("li");
+                connDisconnMessage.textContent = "User chat disconnected";
+                document.querySelector("#list").appendChild(connDisconnMessage);
+            },
+            onError: (err) => console.log("Chat Client Error ===> ", err),
+            onTextMessage: (message) => {
+                const messageElement = document.createElement("li");
+                messageElement.textContent = `${message.from}: ${message.msg}`;
+                document.querySelector("#messages").appendChild(messageElement);
+            }
+        });
+
+        await WebIM.conn.addEventHandler("group", {
+            onGroupEvent: function (msg) {
+                const statusElement = document.createElement("li");
+                switch (msg.operation) {
+                    case "create":
+                        statusElement.textContent = "Group Created Successfully!!";
+                        console.log("Group Created Successfully ===> ", msg);
+                        break;
+                    case "destroy":
+                        statusElement.textContent = "Group destroyed Successfully!!";
+                        console.log("Group destroyed successfully ===> ", msg);
+                        break;
+                    default:
+                        console.log("Chat Client handlerId event called ====> ", msg);
+                        break;
+                }
+            }
+        });
+
+
+        if (role === "host") {
+            const groupOptions = {
+                data: {
+                    groupname: `${host}_channel_${channel}_group`,
+                    desc: `Chat Group for ${host} channel ${channel} live stream`,
+                    members: [logged_in_user.name], // Need to account for remote users present (could use the client)
+                    public: true,
+                    approval: false,
+                    allowinvites: false,
+                    inviteNeedConfirm: false,
+                    maxusers: 100
+                }
+            }
+
+            const createGroupResult = await WebIM.conn.createGroup(groupOptions);
+            console.log(`Chat group created successfully for host ====> `, createGroupResult, createGroupResult.data.groupid)
+            chatGroupId = createGroupResult.data.groupid;
+            chatGroupHost = true;
+        } else {
+            const chatGroup = await WebIM.conn.getPublicGroups({ limit: 1 }) // Assuming only one chat group is created per live stream
+            console.log("Retrieved chat group ====> ", chatGroup.data);
+            console.log("First chat group found ===> ", chatGroup.data[0]);
+
+            chatGroupId = chatGroup.data[0].groupid;
+            // Attempting audience join
+            const audienceJoinResult = await WebIM.conn.joinGroup({
+                groupId: chatGroupId,
+                message: `${user} trying to join ${host} channel ${channel}`
+            });
+
+            console.log("Audience Join Result ===> ",
+                audienceJoinResult.result,
+                audienceJoinResult.user,
+                audienceJoinResult.id,
+                audienceJoinResult.action
+            );
+            if (!audienceJoinResult.result) console.log(`Reason for failure ===> `, audienceJoinResult.reason);
+        }
+
+        const chatButton = document.createElement("button");
+        chatButton.id = "chat-button";
+
+        const chatButtonImg = document.createElement("img");
+        chatButtonImg.src = "/assets/chat.png";
+        chatButtonImg.style.height = "15px";
+        chatButtonImg.style.maxWidth = "auto";
+        chatButtonImg.style.marginTop = "2%";
+        chatButton.appendChild(chatButtonImg);
+
+        chatButton.addEventListener("click", async (event) => {
+            let chat = document.querySelector("#chat");
+            if (!chat) {
+                chat = document.createElement("div");
+                chat.id = "chat";
+                chat.style.backgroundColor = "rgb(59, 53, 53)";
+                chat.style.height = "90vh";
+                chat.style.width = "25vw";
+
+                const messages = document.createElement("ul");
+                messages.id = "messages";
+                chat.appendChild(messages);
+
+                const sendMessageForm = document.createElement("form");
+                const messageInput = document.createElement("input");
+                messageInput.type = "text";
+                messageInput.placeholder = "Send message to all";
+                messageInput.name = "message";
+                sendMessageForm.appendChild(messageInput);
+                const messageSubmitButton = document.createElement("button");
+                messageSubmitButton.type = "submit";
+                messageSubmitButton.value = "Send";
+                sendMessageForm.appendChild(messageSubmitButton);
+                sendMessageForm.addEventListener("submit", async (event) => {
+                    event.preventDefault();
+                    if (!chatGroupId) throw new Error("Chat Group Id is null ===> ", chatGroupId);
+
+                    const options = {
+                        chatType: "groupChat",
+                        type: "txt",
+                        deliverOnlineOnly: true,
+                        to: chatGroupId,
+                        msg: event.target.elements.message.value
+                    }
+
+                    const msg = await WebIM.message.create(options);
+                    WebIM.conn.send(msg)
+                        .then((res) => console.log("Send message success ===> ", res))
+                        .catch((e) => console.log("Send message fail ===> ", e));
+                })
+                chat.appendChild(sendMessageForm);
+
+                document.querySelector("#stream-main-container").appendChild(chat);
+            } else chat.remove();
+        });
+
+        return chatButton;
     }
 
     async function checkScreenUid(user) {

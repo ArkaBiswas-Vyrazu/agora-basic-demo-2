@@ -1,6 +1,6 @@
 import pkg from "agora-token";
 import { PrismaClient } from "../generated/prisma/client.js";
-const { RtcTokenBuilder, RtcRole } = pkg;
+const { RtcTokenBuilder, RtcRole, ChatTokenBuilder } = pkg;
 import { generate } from "random-words";
 import { events } from "../events.js";
 const prisma = new PrismaClient();
@@ -110,10 +110,33 @@ async function checkScreenUid(req, res) {
     res.status(200).json({ status: pseudoUuids.includes(req.query.uid)});
 }
 
+async function getAgoraChatUserToken(req, res) {
+    console.log("We are here");
+    const token = ChatTokenBuilder.buildUserToken(
+        process.env.AGORA_APP_ID,
+        process.env.AGORA_APP_CERTIFICATE,
+        req.body.user,
+        parseInt(req.query.expireTimeInSeconds) || 3600
+    );
+    console.log(token);
+    res.status(200).json({user: req.body.user, token});
+}
+
+async function getAgoraChatAppToken(req, res) {
+    const token = ChatTokenBuilder.buildAppToken(
+        process.env.AGORA_APP_ID,
+        process.env.AGORA_APP_CERTIFICATE,
+        parseInt(req.query.expireTimeInSeconds) || 3600
+    );
+    res.status(200).json({token});
+}
+
 export const agoraControllers = {
     createHostToken,
     createAudienceToken,
     notifyAudienceStatus,
     handleAgoraAudienceEventStream,
-    checkScreenUid
+    checkScreenUid,
+    getAgoraChatUserToken,
+    getAgoraChatAppToken
 }
