@@ -2,7 +2,6 @@ import Router from "express";
 import { validators } from "../validators/validators.js";
 import { validationResult } from "express-validator";
 import { controllers } from "../controllers/controllers.js";
-import fetch from "node-fetch";
 const agoraRouter = Router();
 
 agoraRouter.post('/token/host/create', validators.agoraValidators.createHostTokenValidator, async (req, res) => {
@@ -39,29 +38,6 @@ agoraRouter.post('/chat/token/create/app', validators.agoraValidators.createAgor
     const errors = validationResult(req);
     if (!errors.isEmpty()) res.status(400).json(errors.array());
     else await controllers.agoraControllers.getAgoraChatAppToken(req, res);
-});
-
-agoraRouter.post('/chat/register/user', async (req, res) => {
-    // DEV-NOTE: This works in browser console, in node REPL, and in Postman. Why doesn't it work here?!!!!!!!!!!!
-
-    const url = `https://${process.env.AGORA_CHAT_HOST}/${process.env.AGORA_CHAT_ORG_NAME}/${process.env.AGORA_CHAT_APP_KEY}/users`
-    console.log(req.body.token);
-    const options = {
-        method: "POST",
-        headers: {
-            Authorization: "Bearer " + req.body.token.trim(),
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        },
-        body: JSON.stringify({ username: req.body.username })
-    }
-
-    console.log(options);
-    let registerResponse = await fetch(url, options)
-        .then(response => response.json())
-        .then(data => data);
-    console.log(registerResponse);
-    res.status(200).json(registerResponse);
 });
 
 agoraRouter.post('/ncsNotify', async (req, res) => {
