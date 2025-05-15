@@ -9,7 +9,7 @@ async function registerChannel(req, res) {
         const channel = await prisma.channels.create({
             data: {
                 name: channelName,
-                host: req.body.host
+                host: parseInt(req.body.host)
             }
         });
 
@@ -24,7 +24,7 @@ async function registerChannel(req, res) {
 async function listChannels(req, res) {
     const channels = await prisma.channels.findMany({
         where: {
-            host: req.query.host
+            host: parseInt(req.query.host)
         }
     });
 

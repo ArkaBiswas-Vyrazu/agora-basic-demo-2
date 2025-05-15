@@ -25,3 +25,29 @@
     height: 5%;
     max-width: auto;
 }
+
+#chat {
+    width: 25vw;
+    height: 91vh;
+    position: relative;
+    background-color: rgb(88, 85, 85);
+}
+
+#chat-messages {
+    width: 100em;
+}
+
+@media only screen and (max-width: 1690px) {
+    #send-message-form input {
+        max-width: 100%;
+    }
+}
+
+#send-message-form{
+    position: absolute;
+    bottom: 0;
+}
+
+#send-message-form input {
+    width: 204%;
+}

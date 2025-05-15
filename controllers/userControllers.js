@@ -4,10 +4,27 @@ const prisma = new PrismaClient();
 
 
 async function registerUser(req, res) {
+    let uuid = Math.floor(Math.random() * 10000);
+    while (true) {
+        console.log(uuid);
+        let check = await prisma.users.findMany({
+            where: {
+                uuid: uuid
+            }
+        });
+        console.log("Check ===> ", check);
+        if (Array.isArray(check) && !check.length) {
+            break;
+        } else {
+            uuid = Math.floor(Math.random() * 10000);
+        }
+    }
+
     const user = await prisma.users.create({
         data: {
             name: req.body.name,
-            password: await bcrypt.hash(req.body.password, 12)
+            password: await bcrypt.hash(req.body.password, 12),
+            uuid: uuid
         }
     });
 
@@ -29,7 +46,7 @@ async function listUsers(req, res) {
             },
             where: {
                 NOT: {
-                    uuid: req.user.uuid
+                    uuid: parseInt(req.user.uuid)
                 }
             }
         });
@@ -40,7 +57,7 @@ async function listUsers(req, res) {
                 const subscription = await prisma.subscriptions.findFirst({
                     where: {
                         host: user.uuid,
-                        subscriber: req.user.uuid
+                        subscriber: parseInt(req.user.uuid)
                     }
                 });
 
@@ -63,8 +80,8 @@ async function subscribeUser(req, res) {
     try {
         const row = await prisma.subscriptions.create({
             data: {
-                host: req.body.host,
-                subscriber: req.body.subscriber
+                host: parseInt(req.body.host),
+                subscriber: parseInt(req.body.subscriber)
             }
         });
 

@@ -9,7 +9,7 @@ const registerChannelValidator = [
     .custom(async value => {
         const host = await prisma.users.findFirst({
             where: {
-                uuid: value
+                uuid: parseInt(value)
             }
         });
         if (!host) throw new Error('Provided host uuid does not exist');
@@ -21,7 +21,7 @@ const registerChannelValidator = [
         const channel = await prisma.channels.findFirst({
             where: {
                 name: value,
-                host: req.body.host
+                host: parseInt(req.body.host)
             }
         });
 
@@ -36,7 +36,7 @@ const listChannelValidator = [
     .custom(async value => {
         const host = await prisma.users.findFirst({
             where: {
-                uuid: value
+                uuid: parseInt(value)
             }
         });
         if (!host) throw new Error('Provided host uuid does not exist');

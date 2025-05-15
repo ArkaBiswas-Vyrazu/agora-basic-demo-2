@@ -10,8 +10,10 @@ datasource db {
 
 model subscriptions {
   id                                    Int      @id @default(autoincrement())
-  host                                  String   @db.VarChar(255)
-  subscriber                            String   @db.VarChar(255)
+  // host                                  String   @db.VarChar(255)
+  // subscriber                            String   @db.VarChar(255)
+  host                                  Int
+  subscriber                            Int
   created_at                            DateTime @default(now())
   updated_at                            DateTime @updatedAt
   users_subscriptions_hostTousers       users    @relation("subscriptions_hostTousers", fields: [host], references: [uuid], onDelete: Cascade, onUpdate: NoAction)
@@ -23,7 +25,8 @@ model subscriptions {
 model users {
   id                                            Int             @id @default(autoincrement())
   name                                          String          @unique @db.VarChar(255)
-  uuid                                          String          @unique @default(uuid()) @db.VarChar(255)
+  // uuid                                          String          @unique @default(uuid()) @db.VarChar(255)
+  uuid                                          Int             @unique
   password                                      String          @db.VarChar(255)
   created_at                                    DateTime        @default(now())
   updated_at                                    DateTime        @updatedAt
@@ -35,7 +38,8 @@ model users {
 model channels {
   id         Int      @id @default(autoincrement())
   name       String   @db.VarChar(255)
-  host       String   @db.VarChar(255)
+  // host       String   @db.VarChar(255)
+  host       Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   users      users    @relation(fields: [host], references: [uuid], onDelete: Cascade, onUpdate: NoAction)

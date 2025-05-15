@@ -52,4 +52,9 @@ agoraRouter.get("/screen/check", async (req, res) => {
     await controllers.agoraControllers.checkScreenUid(req, res);
 });
 
+agoraRouter.post("/stream/push", async (req, res) => {
+    await controllers.agoraControllers.createMediaPushConverter(req, res);
+})
+
+
 export { agoraRouter };

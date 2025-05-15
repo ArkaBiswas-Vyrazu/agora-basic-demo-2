@@ -22,7 +22,7 @@ const subscribeUserValidator = [
     .notEmpty().withMessage("Please provide a valid host uuid")
     .trim()
     .custom(async value => {
-        const user = await prisma.users.findFirst({where: {uuid: value}});
+        const user = await prisma.users.findFirst({where: {uuid: parseInt(value)}});
         if (!user) throw new Error("Provided Host uuid does not exist");
     }),
 
@@ -30,7 +30,7 @@ const subscribeUserValidator = [
     .notEmpty().withMessage("Please provide a valid subscriber uuid")
     .trim()
     .custom(async value => {
-        const user = await prisma.users.findFirst({where: {uuid: value}});
+        const user = await prisma.users.findFirst({where: {uuid: parseInt(value)}});
         if (!user) throw new Error("Provided Subscriber uuid does not exist");
     })
 ]

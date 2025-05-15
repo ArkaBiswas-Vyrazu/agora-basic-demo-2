@@ -3,6 +3,7 @@ import { PrismaClient } from "../generated/prisma/client.js";
 const { RtcTokenBuilder, RtcRole, ChatTokenBuilder } = pkg;
 import { generate } from "random-words";
 import { events } from "../events.js";
+import https from "https";
 const prisma = new PrismaClient();
 
 let pseudoUuids = [];
@@ -13,7 +14,7 @@ async function createHostToken(req, res) {
     const channel = await prisma.channels.findFirst({
         where: {
             name: channelName,
-            host: req.body.host
+            host: parseInt(req.body.host)
         }
     });
 
@@ -21,7 +22,7 @@ async function createHostToken(req, res) {
         await prisma.channels.create({
             data: {
                 name: channelName,
-                host: req.body.host
+                host: parseInt(req.body.host)
             }
         });
     }
@@ -33,13 +34,13 @@ async function createHostToken(req, res) {
         process.env.AGORA_APP_ID,
         process.env.AGORA_APP_CERTIFICATE,
         channelName,
-        (pseudoUuid) ? pseudoUuid : req.body.host,
+        (pseudoUuid) ? pseudoUuid : parseInt(req.body.host),
         RtcRole.PUBLISHER,
         600,
         600
     );
 
-    res.status(200).json({host: req.body.host, channel: channelName, token, ...(pseudoUuid && {generated: pseudoUuid})});
+    res.status(200).json({host: parseInt(req.body.host), channel: channelName, token, ...(pseudoUuid && {generated: pseudoUuid})});
 }
 
 async function createAudienceToken(req, res) {
@@ -47,13 +48,13 @@ async function createAudienceToken(req, res) {
         process.env.AGORA_APP_ID,
         process.env.AGORA_APP_CERTIFICATE,
         req.body.channel,
-        req.body.user,
+        parseInt(req.body.user),
         RtcRole.SUBSCRIBER,
         600,
         600
     );
 
-    res.status(200).json({user: req.body.user, channel: req.body.channel, token});
+    res.status(200).json({user: parseInt(req.body.user), channel: req.body.channel, token});
 }
 
 let status = null;
@@ -63,7 +64,7 @@ async function notifyAudienceStatus(req, res) {
     });
 
     if (req.body.eventType !== status) {
-        console.log("Status Right Now ===> ", status);
+        // console.log("Status Right Now ===> ", status);
         status = await req.body.eventType;
 
         // WARNING: This can lead to an event leak.... should find alternate ways of doing this
@@ -89,7 +90,7 @@ async function handleAgoraAudienceEventStream(req, res) {
     events.agoraAudienceJoinLeaveEvent.on("agora-audience-joined-or-left", async (body) => {
         const user = await prisma.users.findFirst({
             where: {
-                uuid: body.payload.account
+                uuid: parseInt(body.payload.account)
             },
             select: {
                 name: true
@@ -106,12 +107,11 @@ async function handleAgoraAudienceEventStream(req, res) {
 }
 
 async function checkScreenUid(req, res) {
-    console.log(req.query.uid, pseudoUuids, pseudoUuids.includes(req.query.uid));
+    // console.log(req.query.uid, pseudoUuids, pseudoUuids.includes(req.query.uid));
     res.status(200).json({ status: pseudoUuids.includes(req.query.uid)});
 }
 
 async function getAgoraChatUserToken(req, res) {
-    console.log("We are here");
     const token = ChatTokenBuilder.buildUserToken(
         process.env.AGORA_APP_ID,
         process.env.AGORA_APP_CERTIFICATE,
@@ -131,6 +131,49 @@ async function getAgoraChatAppToken(req, res) {
     res.status(200).json({token});
 }
 
+async function createMediaPushConverter(req, res) {
+    const postData = JSON.stringify({
+        converter: {
+            name: `${req.user.uuid}_channel_${req.body.channel}_stream_converter`,
+            rawOptions: {
+                rtcChannel: req.body.channel,
+                rtcStreamUid: req.user.uuid
+            },
+            rtmpUrl: process.env.RTMP_URL + '/' + `${req.user.uuid}_${req.body.channel}`
+        }
+    })
+
+    // NOTE: Region name can be - cn, ap, na, eu. Refer to Media Push docs
+    const options = {
+        hostname: "api.agora.io",
+        path: `/ap/v1/projects/${process.env.AGORA_APP_ID}/rtmp-converters`,
+        method: "POST",
+        headers: {
+            "Authorization": Buffer.from(process.env.AGORA_REST_API_KEY + ":" + process.env.AGORA_REST_API_SECRET).toString("base64"),
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(postData),
+            "X-Request-ID": `${req.user.uuid}_channel_${req.body.channel}_stream`
+        }
+    }
+
+    let data = '';
+    const apiReq = https.request(options, (apiRes) => {
+        console.log(`STATUS: ${apiRes.statusCode}`);
+        console.log(`HEADERS: ${JSON.stringify(apiRes.headers)}`);
+        apiRes.setEncoding("utf-8");
+        apiRes.on('data', (chunk) => {
+            process.stdout.write("DATA: ", chunk);
+            data += chunk;
+        });
+        apiRes.on('end', () => {
+            res.status(200).json(data);
+        });
+    });
+
+    apiReq.write(postData);
+    apiReq.end();
+}
+
 export const agoraControllers = {
     createHostToken,
     createAudienceToken,
@@ -138,5 +181,6 @@ export const agoraControllers = {
     handleAgoraAudienceEventStream,
     checkScreenUid,
     getAgoraChatUserToken,
-    getAgoraChatAppToken
+    getAgoraChatAppToken,
+    createMediaPushConverter
 }

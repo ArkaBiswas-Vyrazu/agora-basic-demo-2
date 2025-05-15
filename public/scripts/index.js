@@ -1,12 +1,12 @@
 window.addEventListener("DOMContentLoaded", async () => {
-    const APP_ID = "";
+    const APP_ID = "af23f14937f3479aa6c6c05ca2ea5609";
     const client = AgoraRTC.createClient({ mode: "live", codec: "h264" });
     const screenClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" }) // For screen recording
 
-    const AGORA_CHAT_APP_KEY = ""
-    const AGORA_CHAT_HOST = "";
-    const AGORA_CHAT_ORG_NAME = "";
-    const AGORA_CHAT_APP_NAME = "";
+    const AGORA_CHAT_APP_KEY = "611334753#1545918"
+    const AGORA_CHAT_HOST = "a61.chat.agora.io";
+    const AGORA_CHAT_ORG_NAME = "611334753";
+    const AGORA_CHAT_APP_NAME = "1545918";
     WebIM.conn = new WebIM.connection({ appKey: AGORA_CHAT_APP_KEY });
 
     let screenUID = null;
@@ -620,6 +620,7 @@ window.addEventListener("DOMContentLoaded", async () => {
                 console.log("Message received ===> ", message.from, message.msg);
                 messages.push(`${message.from}: ${message.msg}`);
                 const messageElement = document.createElement("li");
+                messageElement.className = "message";
                 messageElement.textContent = `${message.from}: ${message.msg}`;
                 document.querySelector("#messages").appendChild(messageElement);
             },
@@ -715,10 +716,12 @@ window.addEventListener("DOMContentLoaded", async () => {
             if (!chat) {
                 chat = document.createElement("div");
                 chat.id = "chat";
-                chat.style.backgroundColor = "rgb(59, 53, 53)";
-                chat.style.height = "90vh";
-                chat.style.width = "25vw";
+                // chat.style.backgroundColor = "rgb(88, 85, 85)";
+                // chat.style.height = "90vh";
+                // chat.style.width = "25vw";
 
+                let chatMessages = document.createElement("div");
+                chatMessages.id = "chat-messages";
                 const messagesList = document.createElement("ul");
                 messagesList.id = "messages";
                 for (const message of messages) {
@@ -726,9 +729,12 @@ window.addEventListener("DOMContentLoaded", async () => {
                     messageElement.textContent = message;
                     messagesList.appendChild(messageElement);
                 }
-                chat.appendChild(messagesList);
+                // chat.appendChild(messagesList);
+                chatMessages.appendChild(messagesList);
+                chat.appendChild(chatMessages);
 
                 const sendMessageForm = document.createElement("form");
+                sendMessageForm.id = "send-message-form";
                 const messageInput = document.createElement("input");
                 messageInput.type = "text";
                 messageInput.placeholder = "Send message to all";
@@ -757,6 +763,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
                     messages.push(`Me: ${event.target.elements.message.value}`);
                     const messageElement = document.createElement("li");
+                    messageElement.className = "message";
                     messageElement.textContent = `Me: ${event.target.elements.message.value}`;
                     document.querySelector("#messages").appendChild(messageElement);
                 })

@@ -9,7 +9,7 @@ const createHostTokenValidator = [
         .custom(async value => {
             const host = await prisma.users.findFirst({
                 where: {
-                    uuid: value
+                    uuid: parseInt(value)
                 }
             });
 
@@ -29,7 +29,7 @@ const createAudienceTokenValidator = [
         .custom(async value => {
             const host = await prisma.users.findFirst({
                 where: {
-                    uuid: value
+                    uuid: parseInt(value)
                 }
             });
 
@@ -43,7 +43,7 @@ const createAudienceTokenValidator = [
             const channel = await prisma.channels.findFirst({
                 where: {
                     name: value,
-                    host: req.body.host
+                    host: parseInt(req.body.host)
                 }
             });
 
@@ -56,7 +56,7 @@ const createAudienceTokenValidator = [
         .custom(async (value, { req }) => {
             const user = await prisma.users.findFirst({
                 where: {
-                    uuid: value
+                    uuid: parseInt(value)
                 }
             });
 
@@ -64,8 +64,8 @@ const createAudienceTokenValidator = [
 
             const subscription = await prisma.subscriptions.findFirst({
                 where: {
-                    subscriber: value,
-                    host: req.body.host
+                    subscriber: parseInt(value),
+                    host: parseInt(req.body.host)
                 }
             });
 
@@ -96,7 +96,7 @@ const createAgoraChatAppTokenValidator = [
         .custom(async value => {
             const user = await prisma.users.findFirst({
                 where: {
-                    uuid: value
+                    uuid: parseInt(value)
                 }
             });
 
