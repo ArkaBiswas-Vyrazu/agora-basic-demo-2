@@ -40,7 +40,7 @@ async function createHostToken(req, res) {
         600
     );
 
-    res.status(200).json({host: parseInt(req.body.host), channel: channelName, token, ...(pseudoUuid && {generated: pseudoUuid})});
+    res.status(200).json({ host: parseInt(req.body.host), channel: channelName, token, ...(pseudoUuid && { generated: pseudoUuid }) });
 }
 
 async function createAudienceToken(req, res) {
@@ -54,7 +54,7 @@ async function createAudienceToken(req, res) {
         600
     );
 
-    res.status(200).json({user: parseInt(req.body.user), channel: req.body.channel, token});
+    res.status(200).json({ user: parseInt(req.body.user), channel: req.body.channel, token });
 }
 
 let status = null;
@@ -97,7 +97,7 @@ async function handleAgoraAudienceEventStream(req, res) {
             }
         });
 
-        res.write(`data: Audience Member ${user.name} ${(body.eventType == 105) ? "joined": "left"}\n\n`);
+        res.write(`data: Audience Member ${user.name} ${(body.eventType == 105) ? "joined" : "left"}\n\n`);
     });
 
     req.on("close", () => {
@@ -108,7 +108,7 @@ async function handleAgoraAudienceEventStream(req, res) {
 
 async function checkScreenUid(req, res) {
     // console.log(req.query.uid, pseudoUuids, pseudoUuids.includes(req.query.uid));
-    res.status(200).json({ status: pseudoUuids.includes(req.query.uid)});
+    res.status(200).json({ status: pseudoUuids.includes(req.query.uid) });
 }
 
 async function getAgoraChatUserToken(req, res) {
@@ -119,7 +119,7 @@ async function getAgoraChatUserToken(req, res) {
         parseInt(req.query.expireTimeInSeconds) || 3600
     );
     console.log(token);
-    res.status(200).json({user: req.body.user, token});
+    res.status(200).json({ user: req.body.user, token });
 }
 
 async function getAgoraChatAppToken(req, res) {
@@ -128,10 +128,21 @@ async function getAgoraChatAppToken(req, res) {
         process.env.AGORA_APP_CERTIFICATE,
         parseInt(req.query.expireTimeInSeconds) || 3600
     );
-    res.status(200).json({token});
+    res.status(200).json({ token });
 }
 
 async function createMediaPushConverter(req, res) {
+    const channel = await prisma.channels.findFirst({
+        where: {
+            name: req.body.channel,
+            host: req.user.uuid
+        }
+    });
+    if (!channel) {
+        res.status(400).json({ msg: `You do not have any channel named ${req.body.channel}` });
+        throw new Error(`User ${req.user.uuid} does not have any channel named ${req.body.channel}`);
+    }
+
     const postData = JSON.stringify({
         converter: {
             name: `${req.user.uuid}_channel_${req.body.channel}_stream_converter`,
@@ -139,7 +150,7 @@ async function createMediaPushConverter(req, res) {
                 rtcChannel: req.body.channel,
                 rtcStreamUid: req.user.uuid
             },
-            rtmpUrl: process.env.RTMP_URL + '/' + `${req.user.uuid}_${req.body.channel}`
+            rtmpUrl: process.env.RTMP_URL + '/' + `${req.user.uuid}_${req.body.channel}` // May not work ....
         }
     })
 
@@ -149,7 +160,7 @@ async function createMediaPushConverter(req, res) {
         path: `/ap/v1/projects/${process.env.AGORA_APP_ID}/rtmp-converters`,
         method: "POST",
         headers: {
-            "Authorization": Buffer.from(process.env.AGORA_REST_API_KEY + ":" + process.env.AGORA_REST_API_SECRET).toString("base64"),
+            "Authorization": "Basic " + Buffer.from(process.env.AGORA_REST_API_KEY + ":" + process.env.AGORA_REST_API_SECRET).toString("base64"),
             "Content-Type": "application/json",
             "Content-Length": Buffer.byteLength(postData),
             "X-Request-ID": `${req.user.uuid}_channel_${req.body.channel}_stream`
@@ -160,17 +171,63 @@ async function createMediaPushConverter(req, res) {
     const apiReq = https.request(options, (apiRes) => {
         console.log(`STATUS: ${apiRes.statusCode}`);
         console.log(`HEADERS: ${JSON.stringify(apiRes.headers)}`);
-        apiRes.setEncoding("utf-8");
+        apiRes.setEncoding("utf8");
         apiRes.on('data', (chunk) => {
-            process.stdout.write("DATA: ", chunk);
             data += chunk;
         });
         apiRes.on('end', () => {
-            res.status(200).json(data);
+            console.log("If everything went correctly, livestream currently running on url ===> ", process.env.RTMP_URL + '/' + `${req.user.uuid}_${req.body.channel}`);
+            console.log("Data Received on create: ", data);
+            res.status(200).json(JSON.parse(data));
         });
+    });
+    apiReq.on("error", (err) => {
+        console.log("RTMP Converter create failed ====> ", err);
     });
 
     apiReq.write(postData);
+    apiReq.end();
+
+    req.on("close", () => {
+        res.status(400).json({ msg: "Request could have possibly timed out....." });
+    });
+}
+
+async function deleteMediaPushConverter(req, res) {
+    const channel = await prisma.channels.findFirst({
+        where: {
+            name: req.body.channel,
+            host: req.user.uuid
+        }
+    });
+    if (!channel) {
+        res.status(400).json({ msg: `You do not have any channel named ${req.body.channel}` });
+        throw new Error(`User ${req.user.uuid} does not have any channel named ${req.body.channel}`);
+    }
+
+    const options = {
+        hostname: "api.agora.io",
+        path: `/ap/v1/projects/${process.env.AGORA_APP_ID}/rtmp-converters/${req.body.converterId}`,
+        method: "DELETE",
+        headers: {
+            Authorization: "Basic " + Buffer.from(process.env.AGORA_REST_API_KEY + ":" + process.env.AGORA_REST_API_SECRET).toString("base64"),
+            "X-Request-ID": `${req.user.uuid}_channel_${req.body.channel}_stream`
+        }
+    }
+
+    let data = '';
+    const apiReq = https.request(options, apiRes => {
+        console.log('Status Code: ', apiRes.statusCode);
+        console.log('Headers: ', apiRes.headers);
+
+        apiRes.on("data", chunk => data += chunk);
+        apiRes.on("end", () => {
+            console.log("Data Recieved on delete: ", data)
+            res.status(200).json(JSON.parse(data))
+        });
+    });
+
+    apiReq.on("error", e => res.status(500).json({error: e.toString()}));
     apiReq.end();
 }
 
@@ -182,5 +239,6 @@ export const agoraControllers = {
     checkScreenUid,
     getAgoraChatUserToken,
     getAgoraChatAppToken,
-    createMediaPushConverter
+    createMediaPushConverter,
+    deleteMediaPushConverter
 }

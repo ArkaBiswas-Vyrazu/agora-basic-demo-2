@@ -77,15 +77,15 @@ const createAgoraChatUserTokenValidator = [
     body("user")
         .trim()
         .notEmpty().withMessage("Please provide a valid user uuid")
-        // .custom(async value => {
-        //     const user = await prisma.users.findFirst({
-        //         where: {
-        //             uuid: value
-        //         }
-        //     });
+    // .custom(async value => {
+    //     const user = await prisma.users.findFirst({
+    //         where: {
+    //             uuid: value
+    //         }
+    //     });
 
-        //     if (!user) throw new Error("Provided user uuid does not exist");
-        // })
+    //     if (!user) throw new Error("Provided user uuid does not exist");
+    // })
 ]
 
 // Note: These values would not be actually used in the actual token building
@@ -118,11 +118,27 @@ const createAgoraChatAppTokenValidator = [
     //     })
 ]
 
+const createMediaPushConverterValidator = [
+    body("channel")
+        .trim()
+        .notEmpty().withMessage("Please provide a valid channel name")
+]
+
+const deleteMediaPushConverterValidator = [
+    body("channel")
+        .trim()
+        .notEmpty().withMessage("Please provide a valid channel name"),
+
+    body("converterId")
+        .trim()
+        .notEmpty().withMessage("Please provide a valid converter ID")
+]
 
 export const agoraValidators = {
     createHostTokenValidator,
     createAudienceTokenValidator,
-    // registerAgoraChatUser,
     createAgoraChatUserTokenValidator,
-    createAgoraChatAppTokenValidator
+    createAgoraChatAppTokenValidator,
+    createMediaPushConverterValidator,
+    deleteMediaPushConverterValidator
 };

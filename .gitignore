@@ -3,3 +3,6 @@ node_modules
 !.env.example
 generated/*
 !generated/README.md
+test
+NOTES.md
+venv

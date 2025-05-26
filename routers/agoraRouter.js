@@ -52,9 +52,22 @@ agoraRouter.get("/screen/check", async (req, res) => {
     await controllers.agoraControllers.checkScreenUid(req, res);
 });
 
-agoraRouter.post("/stream/push", async (req, res) => {
-    await controllers.agoraControllers.createMediaPushConverter(req, res);
-})
+agoraRouter.post("/stream/push", validators.agoraValidators.createMediaPushConverterValidator, async (req, res) => {
+    console.log(req.body);
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) res.status(400).json(errors.array());
+    else await controllers.agoraControllers.createMediaPushConverter(req, res);
+});
 
+agoraRouter.delete("/stream/delete", validators.agoraValidators.deleteMediaPushConverterValidator, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) res.status(400).json(errors.array());
+    else await controllers.agoraControllers.deleteMediaPushConverter(req, res);
+});
+
+agoraRouter.use((err, req, res, next) => {
+    console.log(err);
+    res.status(500).json({ error: err.toString() });
+});
 
 export { agoraRouter };

@@ -42,20 +42,7 @@
         <script src="scripts/agora.js" defer></script>
         <script src="scripts/agora-chat.js" defer></script>
         <script src="scripts/index.js" defer></script>
-        <script>
-            const eventSource = new EventSource(`/agora/events`, {withCredentials: true});
-            eventSource.onmessage = (event) => {
-                const newElement = document.createElement("li");
-                newElement.textContent = event.data;
-                document.querySelector("#list").appendChild(newElement);
-            }
-
-            eventSource.onerror = (err) => {
-                console.error("EventSource failed: ", err);
-            }
-
-            window.onbeforeunload = () => eventSource.close();
-        </script>
+        <script src="scripts/events.js" defer></script>
     <% } else { %>
         <h1>How did you get here?</h1>
         <a href="/user/login">Go to the login page</a>

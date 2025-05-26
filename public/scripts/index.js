@@ -364,7 +364,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
                 // Registering user if user does not exist
                 // let registerResponse = await fetch(
-                    // `https://${AGORA_CHAT_HOST}/${AGORA_CHAT_ORG_NAME}/${AGORA_CHAT_APP_NAME}/users`,
+                // `https://${AGORA_CHAT_HOST}/${AGORA_CHAT_ORG_NAME}/${AGORA_CHAT_APP_NAME}/users`,
                 //     {
                 //         method: "POST",
                 //         headers: {
@@ -467,45 +467,71 @@ window.addEventListener("DOMContentLoaded", async () => {
         /* ############################################################## */
 
         /* ################### Livestream Functionality ####################### */
-        const liveStreamButton = document.createElement("button");
-        liveStreamButton.id = "live-stream";
+        if (role === "host") {
+            const liveStreamButton = document.createElement("button");
+            liveStreamButton.id = "live-stream";
 
-        const liveStreamButtonImg = document.createElement("img");
-        liveStreamButtonImg.src = "/assets/upload-solid.svg";
-        liveStreamButtonImg.style.height = "15px";
-        liveStreamButtonImg.style.maxWidth = "auto";
-        liveStreamButtonImg.style.marginTop = "2%";
-        liveStreamButton.appendChild(liveStreamButtonImg);
+            const liveStreamButtonImg = document.createElement("img");
+            liveStreamButtonImg.src = "/assets/upload-solid.svg";
+            liveStreamButtonImg.style.height = "15px";
+            liveStreamButtonImg.style.maxWidth = "auto";
+            liveStreamButtonImg.style.marginTop = "2%";
+            liveStreamButton.appendChild(liveStreamButtonImg);
 
-        let liveStreamStatus = false;
-        liveStreamButton.addEventListener("click", async (event) => {
-            const url = `rtmp://localhost/live/${channel}`; // Test RTMP URL (Using nginx)
-            console.log("RTMP URL ===> ", url);
-            if (liveStreamStatus === false) {
-                try {
-                    await client.startLiveStreaming(url);
-                    console.log(`Live stream successfully running at ${url}`);
-                    liveStreamStatus = true;
-                } catch (err) {
+            let liveStreamStatus = false;
+            let converterId = null;
+            // May need to add ability to let user input RTMP url, or get dynamic ones :|
+            liveStreamButton.addEventListener("click", async (event) => {
+                if (liveStreamStatus === false) {
                     try {
-                        await client.stopLiveStreaming(url);
-                    } catch (err) { console.log("Error Encountered while trying to stop live streaming ====> ", err) };
-                    liveStreamStatus = false;
-                    console.log("Error Encountered while trying to start live stream ====> ", err);
-                }
-            } else {
-                try {
-                    await client.stopLiveStreaming(url);
-                    console.log(`Live streaming at url ${url} successfully stopped`);
-                    liveStreamStatus = false;
-                } catch (err) {
-                    liveStreamStatus = false;
-                    console.log("Error encountered while trying to stop live streaming ====> ", err);
-                }
-            }
-        });
+                        // await client.startLiveStreaming(url); # This method does not work
 
-        controls.appendChild(liveStreamButton);
+                        const response = await fetch("/agora/stream/push", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({"channel": channel})
+                        }).then(async res => {
+                            let data = await res.json();
+                            return data;
+                        });
+
+                        console.log("Converter create response ====> ", response);
+                        liveStreamStatus = true;
+                        try {
+                            converterId = response.converter.id
+                        } catch(err) {
+                            converterId = JSON.parse(response).converter.id
+                        }
+                    } catch (err) {
+                        // try {
+                        //     // await client.stopLiveStreaming(url);
+                        // } catch (err) { console.log("Error Encountered while trying to stop live streaming ====> ", err) };
+                        liveStreamStatus = false;
+                        console.log("Error Encountered while trying to start live stream ====> ", err);
+                        console.error("Converter may have been created, you may need to get rid of it ===>", response)
+                    }
+                } else {
+                    try {
+                        // await client.stopLiveStreaming(url);
+                        const response = await fetch("/agora/stream/delete", {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ "channel": channel, converterId})
+                        }).then(async res => {
+                            let data = await res.json();
+                            return data;
+                        });
+
+                        liveStreamStatus = false;
+                    } catch (err) {
+                        liveStreamStatus = false;
+                        console.error("Error encountered while trying to stop live streaming ====> ", err);
+                    }
+                }
+            });
+
+            controls.appendChild(liveStreamButton);
+        }
         /* #################################################################### */
 
         streamWrapper.appendChild(controls);
